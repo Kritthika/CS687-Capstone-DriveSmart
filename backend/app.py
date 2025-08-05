@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, g
 import sqlite3
 from flask_cors import CORS
-from service import call_ollama_driving_assistant  # import from service.py
+from service import call_ollama_driving_assistant, get_study_recommendations, analyze_user_performance, track_user_progress  # import from service.py
 app = Flask(__name__)
 CORS(app)
 DATABASE = 'database.db'
@@ -153,6 +153,140 @@ def get_rules():
     except FileNotFoundError:
         return jsonify({'rules': 'Rules not available for this state.'})
 
+@app.route('/submit-quiz', methods=['POST'])
+def submit_quiz():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        test_number = data.get('test_number')
+        state = data.get('state', 'General')  # Default to 'General' if not provided
+        score = data.get('score')
+        total_questions = data.get('total_questions')
+        timestamp = data.get('timestamp')
+        
+        if not all([user_id, test_number, score is not None, total_questions, timestamp]):
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+        
+        # Get database connection
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Insert quiz result into database
+        cursor.execute('''
+            INSERT INTO quiz_results (user_id, test_number, state, score, total_questions, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (user_id, test_number, state, score, total_questions, timestamp))
+        
+        db.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Quiz result saved successfully',
+            'result_id': cursor.lastrowid
+        }), 200
+        
+    except Exception as e:
+        print(f"Error saving quiz result: {e}")
+        return jsonify({'success': False, 'message': 'Internal server error'}), 500
+
+@app.route('/ai/study-plan', methods=['POST'])
+def get_ai_study_plan():
+    """Get AI-powered personalized study plan"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    try:
+        study_plan = get_study_recommendations(user_id)
+        return jsonify(study_plan)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/ai/performance-analysis', methods=['POST'])
+def get_performance_analysis():
+    """Get AI analysis of user's quiz performance"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    try:
+        analysis = analyze_user_performance(user_id)
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/ai/progress-tracking', methods=['POST'])
+def get_progress_tracking():
+    """Track user's progress towards passing score"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    try:
+        progress = track_user_progress(user_id)
+        return jsonify(progress)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/ai/study-tips', methods=['POST'])
+def get_personalized_tips():
+    """Get personalized study tips based on performance"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+    specific_question = data.get('question', '')
+    
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    try:
+        # Get performance analysis first
+        analysis = analyze_user_performance(user_id)
+        
+        if analysis['status'] != 'success':
+            return jsonify(analysis)
+        
+        # Create context-aware prompt
+        weak_areas = analysis.get('weak_areas', [])
+        latest_score = analysis['performance_summary']['latest_score']
+        
+        if specific_question:
+            prompt = f"""
+            User's driving test performance:
+            - Latest score: {latest_score}/100
+            - Weak areas: {', '.join(weak_areas)}
+            
+            User's specific question: {specific_question}
+            
+            Provide personalized advice considering their weak areas and current performance level.
+            """
+        else:
+            prompt = f"""
+            Based on a driving test score of {latest_score}/100 and weak areas in {', '.join(weak_areas)}, 
+            provide specific study tips and strategies to improve performance and reach the passing score of 80.
+            """
+        
+        ai_response = call_ollama_driving_assistant(prompt)
+        
+        return jsonify({
+            'status': 'success',
+            'user_id': user_id,
+            'tips': ai_response,
+            'context': {
+                'latest_score': latest_score,
+                'weak_areas': weak_areas,
+                'performance_level': analysis['performance_summary']['performance_level']
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=5001)

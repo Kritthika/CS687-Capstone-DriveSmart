@@ -1,4 +1,6 @@
 import ollama
+from ai_study_agent import DrivingStudyAgent
+
 def call_ollama_driving_assistant(question, state=None):
     base_prompt = (
         "You are a helpful assistant specialized in driving rules, safety, and license tips.\n"
@@ -21,3 +23,39 @@ def call_ollama_driving_assistant(question, state=None):
         ]
     )
     return response['message']['content']
+
+def get_study_recommendations(user_id):
+    """Get AI-powered study recommendations based on quiz performance"""
+    try:
+        agent = DrivingStudyAgent()
+        study_plan = agent.generate_study_plan(user_id)
+        return study_plan
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Unable to generate study plan: {str(e)}'
+        }
+
+def analyze_user_performance(user_id):
+    """Analyze user's quiz performance"""
+    try:
+        agent = DrivingStudyAgent()
+        analysis = agent.analyze_performance(user_id)
+        return analysis
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Unable to analyze performance: {str(e)}'
+        }
+
+def track_user_progress(user_id):
+    """Track user's progress towards passing"""
+    try:
+        agent = DrivingStudyAgent()
+        progress = agent.get_progress_tracking(user_id)
+        return progress
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Unable to track progress: {str(e)}'
+        }
