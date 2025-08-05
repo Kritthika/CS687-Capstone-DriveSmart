@@ -34,7 +34,12 @@ export default function LoginScreen({ navigation }) {
       if (response.ok) {
         // Store user ID for future use
         await AsyncStorage.setItem('userId', data.user_id.toString());
-        await AsyncStorage.setItem('username', data.username);
+        // Only store username if it exists in the response
+        if (data.username) {
+          await AsyncStorage.setItem('username', data.username);
+        } else {
+          await AsyncStorage.setItem('username', username); // Use the username from input
+        }
         
         navigation.replace('Main', { userId: data.user_id });
       } else {

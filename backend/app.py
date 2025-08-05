@@ -82,7 +82,7 @@ def login():
     cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
     user = cursor.fetchone()
     if user:
-        return jsonify({'message': 'Login successful', 'user_id': user['id']})
+        return jsonify({'message': 'Login successful', 'user_id': user['id'], 'username': user['username']})
     else:
         return jsonify({'message': 'Invalid credentials'}), 401
 

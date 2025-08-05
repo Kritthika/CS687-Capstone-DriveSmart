@@ -69,6 +69,7 @@ export default function App() {
          <Stack.Screen name="Main" component={MainTabs} />
          <Stack.Screen name="StateSelection" component={StateSelectionScreen} />
          <Stack.Screen name="Rules" component={RulesScreen} />
+         <Stack.Screen name="PracticeTest" component={PracticeTestScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
