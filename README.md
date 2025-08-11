@@ -16,20 +16,12 @@
 ## 🚀 Quick Start with GitHub Codespaces
 
 ### Option 1: Using Codespaces (Recommended)
-
-1. **Fork this repository**
-2. **Open in Codespaces**:
-   - Click the green "Code" button
-   - Select "Codespaces" tab
-   - Click "Create codespace on main"
-
-3. **Automatic Setup**: The devcontainer will automatically:
+**Automatic Setup**: The devcontainer will automatically:
    - Install Python 3.9 and Node.js
    - Set up virtual environment
    - Install all dependencies
    - Start both frontend and backend services
-
-4. **Access the Application**:
+ **Access the Application**:
    - Frontend: `http://localhost:3000`
    - Backend API: `http://localhost:5001`
 
@@ -80,7 +72,7 @@ REACT_APP_ENV=development
 1. **Install Ollama**: Follow instructions at [ollama.ai](https://ollama.ai)
 2. **Pull a model**:
    ```bash
-   ollama pull llama2
+   ollama pull llama3
    # or
    ollama pull codellama
    ```
@@ -119,22 +111,11 @@ The application uses SQLite with the following tables:
 ### Resources
 - `GET /rules` - Get state-specific driving rules
 
-
-## 📈 Performance Monitoring
-
-The application includes:
-- Error logging and tracking
-- Performance analytics
-- User progress monitoring
-- AI response optimization
-
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Ollama team for AI integration
 - React and Flask communities
 - Contributors and testers
 - DMV resources for accurate content
--github copilot and chatgpt helped for code working
+- github copilot and chatgpt helped for code working
 ---
-
-**Made with ❤️ for safer driving education**
