@@ -137,14 +137,25 @@ class DrivingStudyAgent:
         quiz_history = self.get_user_quiz_history(user_id)
         
         if not quiz_history:
+            # Return default analysis for new users
             return {
-                'status': 'no_data',
-                'message': 'No quiz history found for this user.'
+                'status': 'success',
+                'user_id': user_id,
+                'performance_summary': {
+                    'latest_score': 0,
+                    'average_score': 0,
+                    'total_attempts': 0,
+                    'pass_score': self.pass_score,
+                    'performance_level': 'needs_improvement',
+                    'improvement_trend': 'no_data'
+                },
+                'weak_areas': ['traffic_signs', 'right_of_way', 'speed_limits'],
+                'message': 'No quiz history found. Take a practice test to get personalized analysis.'
             }
         
         # Calculate performance metrics
         scores = [quiz['score'] for quiz in quiz_history]
-        avg_score = sum(scores) / len(scores)
+        avg_score = sum(scores) / len(scores) if scores else 0
         latest_score = scores[0] if scores else 0
         improvement_trend = self._calculate_trend(scores)
         
@@ -178,11 +189,17 @@ class DrivingStudyAgent:
         if len(scores) < 2:
             return 'insufficient_data'
         
-        recent_avg = sum(scores[:3]) / min(3, len(scores))
-        older_avg = sum(scores[3:6]) / min(3, len(scores[3:]))
+        recent_count = min(3, len(scores))
+        recent_avg = sum(scores[:recent_count]) / recent_count
         
         if len(scores) < 4:
             return 'stable'
+        
+        older_scores = scores[3:6]
+        if not older_scores:
+            return 'stable'
+            
+        older_avg = sum(older_scores) / len(older_scores)
         
         if recent_avg > older_avg + 5:
             return 'improving'

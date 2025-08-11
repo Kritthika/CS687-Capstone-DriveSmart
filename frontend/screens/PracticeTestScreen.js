@@ -34,6 +34,7 @@ export default function PracticeTestScreen({ route, navigation }) {
   const [quizMetadata, setQuizMetadata] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [userAnswers, setUserAnswers] = useState([]); // Track all user answers
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
 
@@ -85,6 +86,12 @@ export default function PracticeTestScreen({ route, navigation }) {
 
   const handleOptionPress = (option) => {
     setSelectedOption(option);
+    
+    // Store the user's answer
+    const newAnswers = [...userAnswers];
+    newAnswers[currentIndex] = option;
+    setUserAnswers(newAnswers);
+    
     if (option === currentQuestion?.answer) {
       setScore((prev) => prev + 1);
     }
@@ -157,7 +164,8 @@ export default function PracticeTestScreen({ route, navigation }) {
 
     if (currentIndex + 1 < questions.length) {
       setCurrentIndex(currentIndex + 1);
-      setSelectedOption(null);
+      // Set the selected option to the previously saved answer for this question
+      setSelectedOption(userAnswers[currentIndex + 1] || null);
     } else {
       setCompleted(true);
       await storeScore();  // Save result once at the end
@@ -204,11 +212,28 @@ export default function PracticeTestScreen({ route, navigation }) {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-            <Text style={styles.nextButtonText}>
-              {currentIndex + 1 === questions.length ? 'Finish Test' : 'Next Question'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.navigationContainer}>
+            {currentIndex > 0 && (
+              <TouchableOpacity 
+                style={styles.previousButton} 
+                onPress={() => {
+                  setCurrentIndex(currentIndex - 1);
+                  setSelectedOption(userAnswers[currentIndex - 1] || null);
+                }}
+              >
+                <Text style={styles.previousButtonText}>← Previous</Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity 
+              style={[styles.nextButton, currentIndex === 0 && styles.nextButtonFullWidth]} 
+              onPress={handleNext}
+            >
+              <Text style={styles.nextButtonText}>
+                {currentIndex + 1 === questions.length ? 'Finish Test' : 'Next Question →'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </>
       ) : completed ? (
         <View style={styles.resultContainer}>
@@ -223,17 +248,35 @@ export default function PracticeTestScreen({ route, navigation }) {
               {state} Practice Test Completed
             </Text>
           )}
-          <TouchableOpacity
-            style={styles.restartButton}
-            onPress={() => {
-              setCurrentIndex(0);
-              setScore(0);
-              setSelectedOption(null);
-              setCompleted(false);
-            }}
-          >
-            <Text style={styles.restartButtonText}>Restart This Test</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.reviewButton}
+              onPress={() => navigation.navigate('QuizReview', {
+                questions,
+                userAnswers,
+                score,
+                total: questions.length,
+                testNumber,
+              })}
+            >
+              <Text style={styles.reviewButtonText}>📋 Review Answers</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.restartButton}
+              onPress={() => {
+                setCurrentIndex(0);
+                setScore(0);
+                setSelectedOption(null);
+                setUserAnswers([]);
+                setCompleted(false);
+              }}
+            >
+              <Text style={styles.restartButtonText}>🔄 Restart Test</Text>
+            </TouchableOpacity>
+          </View>
+          
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
@@ -319,11 +362,52 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 25,
     alignItems: 'center',
+    flex: 1,
+    marginLeft: 10,
+  },
+  nextButtonFullWidth: {
+    marginLeft: 0,
   },
   nextButtonText: {
     color: '#0a2540',
     fontWeight: 'bold',
     fontSize: 18,
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    marginTop: 25,
+    justifyContent: 'space-between',
+  },
+  previousButton: {
+    backgroundColor: '#74c0fc',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  previousButtonText: {
+    color: '#0a2540',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 20,
+    width: '100%',
+  },
+  reviewButton: {
+    backgroundColor: '#00d4aa',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    flex: 0.48,
+  },
+  reviewButtonText: {
+    color: '#0a2540',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   resultContainer: {
     alignItems: 'center',

@@ -10,36 +10,36 @@
 /build
 /dist
 
-# Expo
-.expo/
-dist/
-web-build/
-
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# Debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# Local env files
+# Environment files
 .env*.local
 .env
+.env.development
+.env.production
 
-# Vercel
-.vercel
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+database.db
 
-# Typescript
-*.tsbuildinfo
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -49,10 +49,6 @@ yarn-error.*
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# IDE
-.vscode/
-.idea/
 
 # Logs
 logs
@@ -68,10 +64,25 @@ pids
 *.seed
 *.pid.lock
 
+# Temporary files
+*.tmp
+*.temp
+
+# AI model files (if storing locally)
+*.bin
+*.safetensors
+models/
+
+# Backup files
+*.bak
+*.backup
+
+# Configuration files with sensitive data
+config.local.js
+config.local.json
+
 # Optional npm cache directory
 .npm
-
-# Optional eslint cache
 .eslintcache
 
 # @generated expo-cli sync-2b81b286409207a5da26e14c78851eb30d8ccbdb

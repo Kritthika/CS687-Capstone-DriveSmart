@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, g
 import sqlite3
 from flask_cors import CORS
-from service import call_ollama_driving_assistant, get_study_recommendations, analyze_user_performance, track_user_progress  # import from service.py
+from service import call_ollama_driving_assistant, get_study_recommendations, analyze_user_performance, track_user_progress, get_visual_explanation_data  # import from service.py
 app = Flask(__name__)
 CORS(app)
 DATABASE = 'database.db'
@@ -43,7 +43,11 @@ def init_db():
             CREATE TABLE IF NOT EXISTS quiz_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
+                test_number INTEGER,
+                state TEXT DEFAULT 'General',
                 score INTEGER NOT NULL,
+                total_questions INTEGER,
+                timestamp TEXT,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )
         ''')
@@ -137,10 +141,65 @@ def chat():
         return jsonify({'error': 'Missing prompt'}), 400
 
     user_prompt = data['prompt']
+    user_state = data.get('state', None)  # Optional state parameter
 
     try:
-        answer = call_ollama_driving_assistant(user_prompt)
-        return jsonify({'text': answer})
+        answer = call_ollama_driving_assistant(user_prompt, user_state)
+        
+        # Analyze if response would benefit from visual aids
+        visual_suggestions = []
+        if any(keyword in user_prompt.lower() for keyword in ['right of way', 'intersection', 'yield']):
+            visual_suggestions.append({
+                'type': 'right_of_way',
+                'title': 'Right of Way Rules',
+                'description': 'Interactive intersection diagram'
+            })
+        
+        if any(keyword in user_prompt.lower() for keyword in ['parking', 'parallel']):
+            visual_suggestions.append({
+                'type': 'parking',
+                'title': 'Parking Guide',
+                'description': 'Step-by-step parking instructions'
+            })
+        
+        if any(keyword in user_prompt.lower() for keyword in ['speed limit', 'speed zone']):
+            visual_suggestions.append({
+                'type': 'speed_limits',
+                'title': 'Speed Limit Guide',
+                'description': 'Speed limits by zone type'
+            })
+        
+        if any(keyword in user_prompt.lower() for keyword in ['stop sign', 'stop procedure']):
+            visual_suggestions.append({
+                'type': 'stop_sign',
+                'title': 'Stop Sign Procedure',
+                'description': 'Proper stop sign protocol'
+            })
+        
+        return jsonify({
+            'text': answer,
+            'visual_suggestions': visual_suggestions
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/visual-guide', methods=['POST'])
+def get_visual_guide():
+    """Get structured data for visual explanations"""
+    data = request.get_json()
+    if not data or 'type' not in data:
+        return jsonify({'error': 'Missing visual type'}), 400
+    
+    visual_type = data['type']
+    state = data.get('state', None)
+    
+    try:
+        visual_data = get_visual_explanation_data(visual_type, state)
+        return jsonify({
+            'type': visual_type,
+            'data': visual_data,
+            'state': state
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 @app.route('/rules')

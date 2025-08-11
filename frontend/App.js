@@ -10,6 +10,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import QuizScreen from './screens/QuizScreen';
 import PracticeTestScreen from './screens/PracticeTestScreen';
+import QuizReviewScreen from './screens/QuizReviewScreen';
 import ChatbotScreen from './screens/ChatbotScreen';
 import ProgressScreen from './screens/ProgressScreen';
 import LogoutScreen from './screens/LogoutScreen';
@@ -27,6 +28,7 @@ function RulesStackScreen() {
       <RulesStack.Screen name="Rules" component={RulesScreen} />
       <RulesStack.Screen name="QuizMain" component={QuizScreen} />
       <RulesStack.Screen name="PracticeTest" component={PracticeTestScreen} />
+      <RulesStack.Screen name="QuizReview" component={QuizReviewScreen} />
     </RulesStack.Navigator>
   );
 }
@@ -70,6 +72,7 @@ export default function App() {
          <Stack.Screen name="StateSelection" component={StateSelectionScreen} />
          <Stack.Screen name="Rules" component={RulesScreen} />
          <Stack.Screen name="PracticeTest" component={PracticeTestScreen} />
+         <Stack.Screen name="QuizReview" component={QuizReviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -55,30 +55,43 @@ export default function ProgressScreen({ route }) {
   const loadAiAnalysis = async (currentUserId) => {
     if (!currentUserId) return;
     
+    console.log('Loading AI analysis for user ID:', currentUserId);
     setLoading(true);
     try {
       // Get performance analysis
+      console.log('Fetching performance analysis...');
       const analysisResponse = await fetch(`${BASE_URL}/ai/performance-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: parseInt(currentUserId) }),
       });
       
+      console.log('Performance analysis response status:', analysisResponse.status);
+      
       if (analysisResponse.ok) {
         const analysisData = await analysisResponse.json();
+        console.log('Performance analysis data:', analysisData);
         setAiAnalysis(analysisData);
+      } else {
+        console.error('Performance analysis failed:', analysisResponse.status);
       }
 
       // Get progress tracking
+      console.log('Fetching progress tracking...');
       const progressResponse = await fetch(`${BASE_URL}/ai/progress-tracking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: parseInt(currentUserId) }),
       });
       
+      console.log('Progress tracking response status:', progressResponse.status);
+      
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
+        console.log('Progress tracking data:', progressData);
         setProgressData(progressData);
+      } else {
+        console.error('Progress tracking failed:', progressResponse.status);
       }
 
     } catch (error) {
@@ -88,12 +101,13 @@ export default function ProgressScreen({ route }) {
     }
   };
 
-  const generateStudyPlan = async () => {
+    const generateStudyPlan = async () => {
     if (!userId) {
       Alert.alert('Error', 'User ID not found. Please login again.');
       return;
     }
 
+    console.log('Generating study plan for user ID:', userId);
     setLoading(true);
     try {
       const response = await fetch(`${BASE_URL}/ai/study-plan`, {
@@ -102,12 +116,16 @@ export default function ProgressScreen({ route }) {
         body: JSON.stringify({ user_id: parseInt(userId) }),
       });
 
+      console.log('Study plan response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Study plan data received:', data);
         setStudyPlan(data);
-        Alert.alert('Success', 'AI Study Plan Generated!');
+        Alert.alert('Success', 'AI study plan generated successfully!');
       } else {
         const errorData = await response.json();
+        console.error('Study plan error data:', errorData);
         Alert.alert('Error', errorData.message || 'Failed to generate study plan');
       }
     } catch (error) {
@@ -118,12 +136,13 @@ export default function ProgressScreen({ route }) {
     }
   };
 
-  const getPersonalizedTips = async () => {
+    const getStudyTips = async () => {
     if (!userId) {
       Alert.alert('Error', 'User ID not found. Please login again.');
       return;
     }
 
+    console.log('Getting study tips for user ID:', userId);
     setLoading(true);
     try {
       const response = await fetch(`${BASE_URL}/ai/study-tips`, {
@@ -135,13 +154,18 @@ export default function ProgressScreen({ route }) {
         }),
       });
 
+      console.log('Study tips response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Study tips data received:', data);
         Alert.alert('AI Study Tips', data.tips, [{ text: 'OK' }]);
       } else {
+        console.error('Study tips failed:', response.status);
         Alert.alert('Error', 'Failed to get study tips');
       }
     } catch (error) {
+      console.error('Study tips error:', error);
       Alert.alert('Error', 'Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -151,6 +175,18 @@ export default function ProgressScreen({ route }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>📈 Your Progress</Text>
+      
+      {/* Debug Section - Show current state */}
+      {__DEV__ && (
+        <View style={[styles.aiSection, { backgroundColor: '#f0f0f0' }]}>
+          <Text style={styles.sectionTitle}>🐛 Debug Info</Text>
+          <Text>User ID: {userId || 'Not set'}</Text>
+          <Text>AI Analysis Status: {aiAnalysis ? aiAnalysis.status || 'No status' : 'No data'}</Text>
+          <Text>Progress Data Status: {progressData ? progressData.status || 'No status' : 'No data'}</Text>
+          <Text>Study Plan Status: {studyPlan ? studyPlan.status || 'No status' : 'No data'}</Text>
+          <Text>Loading: {loading ? 'Yes' : 'No'}</Text>
+        </View>
+      )}
       
       {/* AI Analysis Section */}
       {aiAnalysis && aiAnalysis.status === 'success' && (
@@ -175,6 +211,16 @@ export default function ProgressScreen({ route }) {
               </Text>
             )}
           </View>
+        </View>
+      )}
+
+      {/* No AI Analysis Message */}
+      {(!aiAnalysis || aiAnalysis.status !== 'success') && !loading && (
+        <View style={styles.aiSection}>
+          <Text style={styles.sectionTitle}>🤖 AI Analysis</Text>
+          <Text style={styles.infoText}>
+            Take a practice test to get AI-powered performance analysis and personalized study recommendations!
+          </Text>
         </View>
       )}
 
@@ -217,7 +263,7 @@ export default function ProgressScreen({ route }) {
 
         <TouchableOpacity 
           style={[styles.aiButton, loading && styles.disabledButton]} 
-          onPress={getPersonalizedTips}
+          onPress={getStudyTips}
           disabled={loading}
         >
           {loading ? (
@@ -243,7 +289,25 @@ export default function ProgressScreen({ route }) {
               Focus Areas: <Text style={styles.highlight}>{studyPlan.study_plan.focus_areas.join(', ').replace(/_/g, ' ')}</Text>
             </Text>
             
-            <Text style={styles.recommendationsTitle}>AI Recommendations:</Text>
+            {/* Study Materials */}
+            <Text style={styles.subsectionTitle}>📚 Study Materials:</Text>
+            {studyPlan.study_plan.study_materials.map((material, index) => (
+              <Text key={index} style={styles.materialItem}>• {material}</Text>
+            ))}
+            
+            {/* Daily Schedule Preview */}
+            <Text style={styles.subsectionTitle}>📅 First Week Schedule:</Text>
+            {studyPlan.study_plan.daily_schedule.slice(0, 7).map((day, index) => (
+              <View key={index} style={styles.daySchedule}>
+                <Text style={styles.dayTitle}>Day {day.day}: {day.topics.join(', ').replace(/_/g, ' ')}</Text>
+                <Text style={styles.dayDuration}>Duration: {day.study_duration}</Text>
+                <Text style={styles.dayActivities}>
+                  Activities: {day.activities.slice(0, 2).join(', ')}...
+                </Text>
+              </View>
+            ))}
+            
+            <Text style={styles.recommendationsTitle}>🤖 AI Recommendations:</Text>
             <Text style={styles.recommendationsText}>{studyPlan.ai_recommendations}</Text>
           </View>
         </View>
@@ -462,5 +526,48 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 14,
     color: '#7a8fa6',
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 10,
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#74c0fc',
+    marginTop: 15,
+    marginBottom: 8,
+  },
+  materialItem: {
+    fontSize: 14,
+    color: '#d0d7de',
+    marginBottom: 4,
+    paddingLeft: 10,
+  },
+  daySchedule: {
+    backgroundColor: '#1c2937',
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#00d4aa',
+  },
+  dayTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#74c0fc',
+    marginBottom: 3,
+  },
+  dayDuration: {
+    fontSize: 12,
+    color: '#a5a5a5',
+    marginBottom: 2,
+  },
+  dayActivities: {
+    fontSize: 12,
+    color: '#d0d7de',
   },
 });
