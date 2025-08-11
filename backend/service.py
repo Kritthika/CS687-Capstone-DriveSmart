@@ -1,131 +1,238 @@
-import ollama
-from ai_study_agent import DrivingStudyAgent
+import requests
+import json
+from flask import g
+import sqlite3
 
-def call_ollama_driving_assistant(question, state=None):
-    # Enhanced prompt that encourages visual explanations
-    base_prompt = (
-        "You are a helpful assistant specialized in driving rules, safety, and license tips.\n"
-        "When explaining complex concepts like right-of-way, intersections, parking, traffic signs, "
-        "or driving maneuvers, mention that visual diagrams would be helpful and suggest specific "
-        "visual elements that would aid understanding.\n\n"
-        "For example:\n"
-        "- For right-of-way questions: mention intersection diagrams\n"
-        "- For parking: mention step-by-step visual guides\n"
-        "- For traffic signs: mention sign recognition visuals\n"
-        "- For speed limits: mention zone-specific charts\n\n"
-    )
-    
-    if state:
-        try:
-            with open(f'state_rules/{state.lower().replace(" ", "_")}.txt', 'r') as f:
-                rules_context = f.read()[:4000]  # Truncate if too long
-                base_prompt += f"Refer to these rules from {state}:\n{rules_context}\n"
-        except:
-            base_prompt += "State-specific rules not found.\n"
-
-    base_prompt += (
-        "Provide clear, helpful answers and when appropriate, suggest that visual aids "
-        "would enhance understanding. Be encouraging and educational."
-    )
-
-    response = ollama.chat(
-        model="llama3",
-        messages=[
-            {"role": "system", "content": base_prompt},
-            {"role": "user", "content": question}
-        ]
-    )
-    return response['message']['content']
-
-def get_visual_explanation_data(concept_type, state=None):
-    """Get structured data for visual explanations"""
-    visual_data = {}
-    
-    if concept_type == "right_of_way":
-        visual_data = {
-            "priority_rules": [
-                "Vehicles going straight have right-of-way over turning vehicles",
-                "Traffic already in intersection has right-of-way",
-                "When arriving simultaneously, yield to vehicle on right",
-                "Emergency vehicles always have right-of-way"
-            ],
-            "scenarios": [
-                {"situation": "Four-way stop", "rule": "First to stop, first to go"},
-                {"situation": "Uncontrolled intersection", "rule": "Yield to traffic on right"},
-                {"situation": "Traffic signal", "rule": "Green light has right-of-way"}
-            ]
-        }
-    
-    elif concept_type == "parking":
-        visual_data = {
-            "parallel_parking": [
-                "Find space 1.5x your car length",
-                "Pull alongside front car, align mirrors",
-                "Reverse with full right lock until 45° angle",
-                "Straighten wheel and continue reversing",
-                "Adjust position as needed"
-            ],
-            "legal_requirements": {
-                "distance_from_curb": "12 inches maximum",
-                "fire_hydrant": "15 feet minimum",
-                "crosswalk": "20 feet minimum",
-                "stop_sign": "30 feet minimum"
-            }
-        }
-    
-    elif concept_type == "speed_limits":
-        base_limits = [
-            {"zone": "School Zone", "speed": 25, "conditions": "When children present"},
-            {"zone": "Residential", "speed": 25, "conditions": "Unless posted otherwise"},
-            {"zone": "Business District", "speed": 35, "conditions": "In most states"},
-            {"zone": "Rural Highway", "speed": 55, "conditions": "Unless posted higher"},
-            {"zone": "Interstate", "speed": 65, "conditions": "Varies by state"}
-        ]
-        
-        # Add state-specific modifications if available
+def call_ollama_driving_assistant(prompt, state=None):
+    """Call Ollama AI service for driving assistance"""
+    try:
+        # Add state context to prompt if provided
+        enhanced_prompt = prompt
         if state:
-            if state.lower() == "california":
-                base_limits[0]["speed"] = 25  # CA school zones
-                base_limits[-1]["speed"] = 65  # CA max freeway speed
-            elif state.lower() == "washington":
-                base_limits[-1]["speed"] = 70  # WA interstate speeds
+            enhanced_prompt = f"For {state} state driving rules: {prompt}"
         
-        visual_data = {"speed_zones": base_limits}
-    
-    return visual_data
+        # Add driving context to make responses more relevant
+        driving_context = """
+        You are a driving instructor AI assistant. Provide clear, accurate, and helpful responses about:
+        - Traffic laws and regulations
+        - Road signs and their meanings
+        - Safe driving practices
+        - Vehicle operation procedures
+        - Parking techniques
+        - Right-of-way rules
+        
+        Keep responses concise but comprehensive. Focus on practical driving knowledge.
+        """
+        
+        full_prompt = f"{driving_context}\n\nQuestion: {enhanced_prompt}"
+        
+        try:
+            # Try to use actual Ollama if available
+            import ollama
+            response = ollama.chat(model='llama2', messages=[
+                {'role': 'user', 'content': full_prompt}
+            ])
+            return response['message']['content']
+        except ImportError:
+            # Fallback to HTTP API if ollama package not available
+            try:
+                response = requests.post('http://localhost:11434/api/chat', 
+                                       json={
+                                           'model': 'llama2',
+                                           'messages': [{'role': 'user', 'content': full_prompt}]
+                                       },
+                                       timeout=30)
+                if response.status_code == 200:
+                    return response.json()['message']['content']
+                else:
+                    return "Ollama service is not available. Please ensure Ollama is running."
+            except requests.exceptions.RequestException:
+                return "Unable to connect to AI service. Please check if Ollama is running on localhost:11434"
+        
+    except Exception as e:
+        return f"Error calling AI service: {str(e)}"
 
 def get_study_recommendations(user_id):
-    """Get AI-powered study recommendations based on quiz performance"""
+    """Generate AI-powered study recommendations"""
     try:
-        agent = DrivingStudyAgent()
-        study_plan = agent.generate_study_plan(user_id)
-        return study_plan
-    except Exception as e:
+        # Get user performance data
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT score, state, timestamp FROM quiz_results 
+            WHERE user_id = ? ORDER BY timestamp DESC LIMIT 5
+        ''', (user_id,))
+        recent_results = cursor.fetchall()
+        
+        if not recent_results:
+            return {
+                'status': 'success',
+                'recommendations': ['Take your first practice quiz to get personalized recommendations'],
+                'focus_areas': ['General driving knowledge'],
+                'estimated_study_time': '2-3 hours'
+            }
+        
+        # Analyze performance and generate recommendations
+        avg_score = sum(r['score'] for r in recent_results) / len(recent_results)
+        
+        recommendations = []
+        focus_areas = []
+        
+        if avg_score < 60:
+            recommendations.extend([
+                'Review basic traffic laws and road signs',
+                'Practice with fundamental driving concepts',
+                'Take more practice quizzes to build confidence'
+            ])
+            focus_areas.extend(['Traffic Laws', 'Road Signs', 'Basic Rules'])
+        elif avg_score < 80:
+            recommendations.extend([
+                'Focus on areas where you scored lowest',
+                'Review state-specific driving regulations',
+                'Practice complex scenarios like intersections and parking'
+            ])
+            focus_areas.extend(['State Rules', 'Complex Scenarios', 'Right of Way'])
+        else:
+            recommendations.extend([
+                'Take advanced practice tests',
+                'Review edge cases and uncommon scenarios',
+                'You\'re ready for the real test!'
+            ])
+            focus_areas.extend(['Advanced Topics', 'Edge Cases'])
+        
         return {
-            'status': 'error',
-            'message': f'Unable to generate study plan: {str(e)}'
+            'status': 'success',
+            'recommendations': recommendations,
+            'focus_areas': focus_areas,
+            'current_average': round(avg_score, 1),
+            'estimated_study_time': '1-4 hours based on current performance'
         }
+        
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
 
 def analyze_user_performance(user_id):
     """Analyze user's quiz performance"""
     try:
-        agent = DrivingStudyAgent()
-        analysis = agent.analyze_performance(user_id)
-        return analysis
-    except Exception as e:
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT score, timestamp FROM quiz_results 
+            WHERE user_id = ? ORDER BY timestamp ASC
+        ''', (user_id,))
+        results = cursor.fetchall()
+        
+        if not results:
+            return {
+                'status': 'no_data',
+                'message': 'No quiz results found for analysis'
+            }
+        
+        scores = [r['score'] for r in results]
+        latest_score = scores[-1]
+        avg_score = sum(scores) / len(scores)
+        
+        # Determine performance level
+        if avg_score >= 80:
+            performance_level = 'Excellent'
+        elif avg_score >= 70:
+            performance_level = 'Good'
+        elif avg_score >= 60:
+            performance_level = 'Fair'
+        else:
+            performance_level = 'Needs Improvement'
+        
+        # Identify weak areas (mock logic)
+        weak_areas = []
+        if latest_score < 80:
+            weak_areas.extend(['Traffic Signs', 'Right of Way'])
+        if avg_score < 70:
+            weak_areas.extend(['Parking Rules', 'Speed Limits'])
+        
         return {
-            'status': 'error',
-            'message': f'Unable to analyze performance: {str(e)}'
+            'status': 'success',
+            'performance_summary': {
+                'latest_score': latest_score,
+                'average_score': round(avg_score, 1),
+                'total_tests': len(results),
+                'performance_level': performance_level
+            },
+            'weak_areas': weak_areas,
+            'improvement_trend': 'improving' if len(scores) > 1 and scores[-1] > scores[-2] else 'stable'
         }
+        
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
 
 def track_user_progress(user_id):
-    """Track user's progress towards passing"""
+    """Track user's progress towards passing score"""
     try:
-        agent = DrivingStudyAgent()
-        progress = agent.get_progress_tracking(user_id)
-        return progress
-    except Exception as e:
+        analysis = analyze_user_performance(user_id)
+        
+        if analysis['status'] != 'success':
+            return analysis
+        
+        latest_score = analysis['performance_summary']['latest_score']
+        passing_score = 80
+        
+        progress_percentage = min(100, (latest_score / passing_score) * 100)
+        
         return {
-            'status': 'error',
-            'message': f'Unable to track progress: {str(e)}'
+            'status': 'success',
+            'current_score': latest_score,
+            'passing_score': passing_score,
+            'progress_percentage': round(progress_percentage, 1),
+            'points_needed': max(0, passing_score - latest_score),
+            'ready_for_test': latest_score >= passing_score
         }
+        
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
+
+def get_visual_explanation_data(visual_type, state=None):
+    """Get structured data for visual explanations"""
+    visual_data = {
+        'right_of_way': {
+            'title': 'Right of Way Rules',
+            'sections': [
+                {'title': 'Four-Way Stop', 'description': 'First to arrive has right of way'},
+                {'title': 'Yield Signs', 'description': 'Yield to traffic already in intersection'},
+                {'title': 'Traffic Lights', 'description': 'Follow signal priority'}
+            ]
+        },
+        'parking': {
+            'title': 'Parking Guidelines',
+            'sections': [
+                {'title': 'Parallel Parking', 'description': 'Step-by-step parallel parking process'},
+                {'title': 'Angle Parking', 'description': 'Proper angle parking technique'},
+                {'title': 'Parking Restrictions', 'description': 'Common parking violations to avoid'}
+            ]
+        },
+        'speed_limits': {
+            'title': 'Speed Limit Guide',
+            'sections': [
+                {'title': 'Residential Areas', 'description': 'Typically 25-35 mph'},
+                {'title': 'School Zones', 'description': 'Usually 15-25 mph when children present'},
+                {'title': 'Highways', 'description': 'Varies by state, typically 55-80 mph'}
+            ]
+        },
+        'stop_sign': {
+            'title': 'Stop Sign Procedure',
+            'sections': [
+                {'title': 'Complete Stop', 'description': 'Come to full stop behind the line'},
+                {'title': 'Look Both Ways', 'description': 'Check for pedestrians and traffic'},
+                {'title': 'Proceed Safely', 'description': 'Enter intersection when clear'}
+            ]
+        }
+    }
+    
+    return visual_data.get(visual_type, {'title': 'Visual guide not available', 'sections': []})
+
+def get_db():
+    """Get database connection (helper function)"""
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect('database.db')
+        db.row_factory = sqlite3.Row
+    return db

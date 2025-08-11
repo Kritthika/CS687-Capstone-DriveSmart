@@ -11,23 +11,23 @@ backend/__pycache__/
 backend/.env
 frontend/.env
 
-# Database files
+# Database files (generated at runtime)
 *.db
 *.sqlite
 *.sqlite3
 backend/database.db
 
-# Python specific
+# Python cache and compiled files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
+
+# Virtual environments
 venv/
 ENV/
 env/
-env.bak/
-venv.bak/
+.venv/
 
 # Build files
 frontend/build/
@@ -45,17 +45,11 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
-
-# Temporary files
-*.tmp
-*.bak
-.idea/
 *.swp
 *.swo
 
 # Temporary files
 *.tmp
-*.temp
 *.bak
 
 # AI models (if stored locally)
