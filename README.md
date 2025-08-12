@@ -47,12 +47,6 @@ The application uses SQLite with the following tables:
 - `POST /submit-quiz` - Submit quiz answers
 - `GET /results` - Get user results
 
-### AI Assistant
-- `POST /chat` - Ask driving questions
-- `POST /visual-guide` - Get visual explanations
-- `POST /ai/study-plan` - Generate study plans
-- `POST /ai/performance-analysis` - Analyze performance
-
 ### Resources
 - `GET /rules` - Get state-specific driving rules
 
