@@ -5,6 +5,17 @@ const isSimulator = () => {
   return process.env.NODE_ENV === 'development';
 };
 
-export const BASE_URL = __DEV__ 
-  ? 'http://192.168.0.22:5001'  // Development - use your machine's IP
-  : 'http://192.168.0.22:5001';
+// Use the IP address from your Flask server output: 10.30.16.84:5002
+export const BASE_URL = process.env.REACT_APP_API_URL || 'http://10.30.16.84:5002';
+
+export const API_ENDPOINTS = {
+  LOGIN: '/login',
+  REGISTER: '/register',
+  QUIZ: '/quiz',
+  SUBMIT_QUIZ: '/submit-quiz',
+  RESULTS: '/results',
+  CHAT: '/chat',
+  AI_ANALYSIS: '/ai/performance-analysis',
+  AI_STUDY_PLAN: '/ai/study-plan',
+  AI_PROGRESS: '/ai/progress-tracking',
+};

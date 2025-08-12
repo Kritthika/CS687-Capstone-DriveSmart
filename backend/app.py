@@ -1,10 +1,14 @@
 from flask import Flask, request, jsonify, g
 import sqlite3
+import os
 from flask_cors import CORS
 from service import call_ollama_driving_assistant, get_study_recommendations, analyze_user_performance, track_user_progress, get_visual_explanation_data  # import from service.py
 app = Flask(__name__)
 CORS(app)
-DATABASE = 'database.db'
+
+# Use absolute path for database
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'database.db')
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -80,11 +84,15 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
+    print(f"Login attempt: username={username}, password={password}")  # Debug log
+
     db = get_db()
     cursor = db.cursor()
 
     cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
     user = cursor.fetchone()
+    print(f"User found: {user}")  # Debug log
+    
     if user:
         return jsonify({'message': 'Login successful', 'user_id': user['id'], 'username': user['username']})
     else:

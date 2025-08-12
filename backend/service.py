@@ -45,12 +45,66 @@ def call_ollama_driving_assistant(prompt, state=None):
                 if response.status_code == 200:
                     return response.json()['message']['content']
                 else:
-                    return "Ollama service is not available. Please ensure Ollama is running."
+                    return generate_fallback_response(enhanced_prompt)
             except requests.exceptions.RequestException:
-                return "Unable to connect to AI service. Please check if Ollama is running on localhost:11434"
+                return generate_fallback_response(enhanced_prompt)
+            except Exception as e:
+                return generate_fallback_response(enhanced_prompt)
         
     except Exception as e:
-        return f"Error calling AI service: {str(e)}"
+        return generate_fallback_response(prompt)
+
+def generate_fallback_response(prompt):
+    """Generate a fallback response when AI service is not available"""
+    prompt_lower = prompt.lower()
+    
+    # Basic keyword-based responses for common driving questions
+    if any(keyword in prompt_lower for keyword in ['right of way', 'right-of-way']):
+        return """Right of way rules:
+- At a 4-way stop, the first vehicle to arrive has the right of way
+- When turning left, yield to oncoming traffic
+- Pedestrians in crosswalks always have the right of way
+- Emergency vehicles always have the right of way"""
+    
+    elif any(keyword in prompt_lower for keyword in ['speed limit', 'speed']):
+        return """General speed limit guidelines:
+- Residential areas: typically 25-35 mph
+- School zones: 15-25 mph when children are present
+- City streets: 35-45 mph
+- Highways: varies by state, typically 55-80 mph
+- Always adjust speed for conditions"""
+    
+    elif any(keyword in prompt_lower for keyword in ['parking', 'parallel']):
+        return """Parking guidelines:
+- Parallel parking: Signal, check mirrors, back in slowly
+- Never park within 15 feet of a fire hydrant
+- Don't park in front of driveways or crosswalks
+- Check local parking signs and time restrictions"""
+    
+    elif any(keyword in prompt_lower for keyword in ['stop sign', 'stop']):
+        return """Stop sign procedure:
+1. Come to a complete stop behind the stop line
+2. Look left, right, and left again
+3. Check for pedestrians
+4. Proceed when safe"""
+    
+    elif any(keyword in prompt_lower for keyword in ['turn signal', 'signal']):
+        return """Turn signal rules:
+- Signal at least 100 feet before turning in city
+- Signal at least 300 feet before turning on highway
+- Keep signal on until turn is completed
+- Use hand signals if turn signals are broken"""
+    
+    else:
+        return """I'm here to help with driving questions! Please ask about:
+- Traffic laws and regulations
+- Road signs and their meanings
+- Safe driving practices
+- Parking rules and techniques
+- Right-of-way rules
+- Speed limits and traffic signals
+
+Note: AI service is currently unavailable, so I'm providing basic guidance."""
 
 def get_study_recommendations(user_id):
     """Generate AI-powered study recommendations"""

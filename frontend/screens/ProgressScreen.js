@@ -1,375 +1,371 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  Alert,
-  ActivityIndicator 
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL } from './config';
 
-export default function ProgressScreen({ route }) {
+export default function ProgressScreen({ route, navigation }) {
   const [results, setResults] = useState([]);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [studyPlan, setStudyPlan] = useState(null);
-  const [progressData, setProgressData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
 
+  // Get userId from route params or AsyncStorage
   useEffect(() => {
-    const initializeData = async () => {
-      // Get user ID from storage or route params
-      const userIdFromStorage = await AsyncStorage.getItem('userId');
-      const userIdFromRoute = route?.params?.userId;
-      const currentUserId = userIdFromRoute || userIdFromStorage || 1; // Default to 1 for testing
-      
-      setUserId(currentUserId);
-      
-      // Load local scores
-      loadLocalScores();
-      
-      // Load AI analysis if user ID is available
-      if (currentUserId) {
-        loadAiAnalysis(currentUserId);
+    const getUserId = async () => {
+      try {
+        // First try to get from navigation params
+        let id = route?.params?.userId || route?.params?.user_id;
+        
+        // If not found in params, try AsyncStorage
+        if (!id) {
+          const storedUserId = await AsyncStorage.getItem('userId');
+          id = storedUserId;
+        }
+        
+        if (id) {
+          setUserId(id);
+          fetchUserProgress(id);
+        } else {
+          setError('User ID not found. Please log in again.');
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error getting user ID:', err);
+        setError('Error retrieving user information.');
+        setLoading(false);
       }
     };
-
-    initializeData();
-  }, [route?.params?.userId]);
-
-  const loadLocalScores = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('testResults');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setResults(parsed.reverse()); // Most recent first
-      }
-    } catch (e) {
-      console.error('Failed to load scores:', e);
-    }
-  };
-
-  const loadAiAnalysis = async (currentUserId) => {
-    if (!currentUserId) return;
     
-    console.log('Loading AI analysis for user ID:', currentUserId);
-    setLoading(true);
+    getUserId();
+  }, [route?.params]);
+
+  const fetchUserProgress = async (userIdParam) => {
     try {
-      // Get performance analysis
-      console.log('Fetching performance analysis...');
-      const analysisResponse = await fetch(`${BASE_URL}/ai/performance-analysis`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: parseInt(currentUserId) }),
-      });
-      
-      console.log('Performance analysis response status:', analysisResponse.status);
-      
-      if (analysisResponse.ok) {
-        const analysisData = await analysisResponse.json();
-        console.log('Performance analysis data:', analysisData);
-        setAiAnalysis(analysisData);
-      } else {
-        console.error('Performance analysis failed:', analysisResponse.status);
-      }
+      setLoading(true);
+      setError(null);
 
-      // Get progress tracking
-      console.log('Fetching progress tracking...');
-      const progressResponse = await fetch(`${BASE_URL}/ai/progress-tracking`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: parseInt(currentUserId) }),
-      });
-      
-      console.log('Progress tracking response status:', progressResponse.status);
-      
-      if (progressResponse.ok) {
-        const progressData = await progressResponse.json();
-        console.log('Progress tracking data:', progressData);
-        setProgressData(progressData);
-      } else {
-        console.error('Progress tracking failed:', progressResponse.status);
-      }
+      const currentUserId = userIdParam || userId;
 
-    } catch (error) {
-      console.error('Failed to load AI analysis:', error);
+      // Fetch user quiz results
+      await fetchQuizResults(currentUserId);
+      
+      // Fetch AI analysis
+      await fetchAIAnalysis(currentUserId);
+      
+      // Fetch study plan
+      await fetchStudyPlan(currentUserId);
+
+    } catch (err) {
+      console.error('Error fetching progress:', err);
+      setError('Unable to load progress data. Please check your connection.');
     } finally {
       setLoading(false);
     }
   };
 
-    const generateStudyPlan = async () => {
-    if (!userId) {
-      Alert.alert('Error', 'User ID not found. Please login again.');
-      return;
+  const fetchQuizResults = async (currentUserId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/results?user_id=${currentUserId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setResults(data || []);
+    } catch (err) {
+      console.error('Error fetching quiz results:', err);
+      throw err;
     }
+  };
 
-    console.log('Generating study plan for user ID:', userId);
-    setLoading(true);
+  const fetchAIAnalysis = async (currentUserId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/ai/performance-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: currentUserId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setAiAnalysis(data);
+      } else if (data.status === 'no_data') {
+        setAiAnalysis({ message: 'No quiz data available yet.' });
+      } else {
+        throw new Error(data.message || 'Failed to get AI analysis');
+      }
+    } catch (err) {
+      console.error('Error fetching AI analysis:', err);
+      // Don't throw here, just set null - this is optional data
+      setAiAnalysis(null);
+    }
+  };
+
+  const fetchStudyPlan = async (currentUserId) => {
     try {
       const response = await fetch(`${BASE_URL}/ai/study-plan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: parseInt(userId) }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: currentUserId }),
       });
 
-      console.log('Study plan response status:', response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Study plan data received:', data);
+      const data = await response.json();
+      
+      if (data.status === 'success') {
         setStudyPlan(data);
-        Alert.alert('Success', 'AI study plan generated successfully!');
       } else {
-        const errorData = await response.json();
-        console.error('Study plan error data:', errorData);
-        Alert.alert('Error', errorData.message || 'Failed to generate study plan');
+        throw new Error(data.message || 'Failed to get study plan');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Network error. Please try again.');
-      console.error('Study plan error:', error);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching study plan:', err);
+      // Don't throw here, just set null - this is optional data
+      setStudyPlan(null);
     }
   };
 
-    const getStudyTips = async () => {
-    if (!userId) {
-      Alert.alert('Error', 'User ID not found. Please login again.');
-      return;
-    }
-
-    console.log('Getting study tips for user ID:', userId);
-    setLoading(true);
-    try {
-      const response = await fetch(`${BASE_URL}/ai/study-tips`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          user_id: parseInt(userId),
-          question: 'What should I focus on to improve my scores?'
-        }),
-      });
-
-      console.log('Study tips response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Study tips data received:', data);
-        Alert.alert('AI Study Tips', data.tips, [{ text: 'OK' }]);
-      } else {
-        console.error('Study tips failed:', response.status);
-        Alert.alert('Error', 'Failed to get study tips');
-      }
-    } catch (error) {
-      console.error('Study tips error:', error);
-      Alert.alert('Error', 'Network error. Please try again.');
-    } finally {
-      setLoading(false);
+  const retryFetch = () => {
+    if (userId) {
+      fetchUserProgress(userId);
+    } else {
+      Alert.alert('Error', 'Please log in again to view your progress.');
+      navigation?.navigate('Login');
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>📈 Your Progress</Text>
-      
-      {/* Debug Section - Show current state */}
-      {__DEV__ && (
-        <View style={[styles.aiSection, { backgroundColor: '#f0f0f0' }]}>
-          <Text style={styles.sectionTitle}>🐛 Debug Info</Text>
-          <Text>User ID: {userId || 'Not set'}</Text>
-          <Text>AI Analysis Status: {aiAnalysis ? aiAnalysis.status || 'No status' : 'No data'}</Text>
-          <Text>Progress Data Status: {progressData ? progressData.status || 'No status' : 'No data'}</Text>
-          <Text>Study Plan Status: {studyPlan ? studyPlan.status || 'No status' : 'No data'}</Text>
-          <Text>Loading: {loading ? 'Yes' : 'No'}</Text>
-        </View>
-      )}
-      
-      {/* AI Analysis Section */}
-      {aiAnalysis && aiAnalysis.status === 'success' && (
-        <View style={styles.aiSection}>
-          <Text style={styles.sectionTitle}>🤖 AI Performance Analysis</Text>
-          <View style={styles.analysisCard}>
-            <Text style={styles.analysisText}>
-              Latest Score: <Text style={styles.scoreText}>{aiAnalysis.performance_summary.latest_score}/100</Text>
-            </Text>
-            <Text style={styles.analysisText}>
-              Average Score: <Text style={styles.scoreText}>{aiAnalysis.performance_summary.average_score}/100</Text>
-            </Text>
-            <Text style={styles.analysisText}>
-              Performance Level: <Text style={styles.levelText}>{aiAnalysis.performance_summary.performance_level.replace('_', ' ')}</Text>
-            </Text>
-            <Text style={styles.analysisText}>
-              Trend: <Text style={styles.trendText}>{aiAnalysis.performance_summary.improvement_trend}</Text>
-            </Text>
-            {aiAnalysis.weak_areas && aiAnalysis.weak_areas.length > 0 && (
-              <Text style={styles.analysisText}>
-                Focus Areas: <Text style={styles.weakText}>{aiAnalysis.weak_areas.join(', ').replace(/_/g, ' ')}</Text>
-              </Text>
-            )}
-          </View>
-        </View>
-      )}
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={styles.loadingText}>Loading your progress...</Text>
+      </View>
+    );
+  }
 
-      {/* No AI Analysis Message */}
-      {(!aiAnalysis || aiAnalysis.status !== 'success') && !loading && (
-        <View style={styles.aiSection}>
-          <Text style={styles.sectionTitle}>🤖 AI Analysis</Text>
-          <Text style={styles.infoText}>
-            Take a practice test to get AI-powered performance analysis and personalized study recommendations!
-          </Text>
-        </View>
-      )}
-
-      {/* Progress Tracking Section */}
-      {progressData && progressData.status === 'success' && (
-        <View style={styles.progressSection}>
-          <Text style={styles.sectionTitle}>🎯 Progress to Passing</Text>
-          <View style={styles.progressCard}>
-            <Text style={styles.progressText}>
-              Progress: <Text style={styles.progressPercent}>{progressData.progress_metrics.progress_percentage}%</Text>
-            </Text>
-            <Text style={styles.progressText}>
-              Points Needed: <Text style={styles.pointsNeeded}>{progressData.progress_metrics.points_needed}</Text>
-            </Text>
-            <Text style={styles.progressText}>
-              Success Probability: <Text style={styles.successProb}>{progressData.progress_metrics.success_probability}%</Text>
-            </Text>
-            
-            <Text style={styles.nextStepsTitle}>Next Steps:</Text>
-            {progressData.next_steps.map((step, index) => (
-              <Text key={index} style={styles.nextStep}>• {step}</Text>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* AI Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.aiButton, loading && styles.disabledButton]} 
-          onPress={generateStudyPlan}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#0a2540" />
-          ) : (
-            <Text style={styles.aiButtonText}>📚 Generate Study Plan</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.aiButton, loading && styles.disabledButton]} 
-          onPress={getStudyTips}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#0a2540" />
-          ) : (
-            <Text style={styles.aiButtonText}>💡 Get Study Tips</Text>
-          )}
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>⚠️ Error Loading Progress</Text>
+        <Text style={styles.errorMessage}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={retryFetch}>
+          <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
+    );
+  }
 
-      {/* Study Plan Display */}
-      {studyPlan && studyPlan.status === 'success' && (
-        <View style={styles.studyPlanSection}>
-          <Text style={styles.sectionTitle}>📋 Your Personalized Study Plan</Text>
-          <View style={styles.studyPlanCard}>
-            <Text style={styles.studyPlanText}>
-              Study Duration: <Text style={styles.highlight}>{studyPlan.study_plan.total_study_days} days</Text>
-            </Text>
-            <Text style={styles.studyPlanText}>
-              Target Date: <Text style={styles.highlight}>{studyPlan.estimated_pass_date}</Text>
-            </Text>
-            <Text style={styles.studyPlanText}>
-              Focus Areas: <Text style={styles.highlight}>{studyPlan.study_plan.focus_areas.join(', ').replace(/_/g, ' ')}</Text>
-            </Text>
-            
-            {/* Study Materials */}
-            <Text style={styles.subsectionTitle}>📚 Study Materials:</Text>
-            {studyPlan.study_plan.study_materials.map((material, index) => (
-              <Text key={index} style={styles.materialItem}>• {material}</Text>
-            ))}
-            
-            {/* Daily Schedule Preview */}
-            <Text style={styles.subsectionTitle}>📅 First Week Schedule:</Text>
-            {studyPlan.study_plan.daily_schedule.slice(0, 7).map((day, index) => (
-              <View key={index} style={styles.daySchedule}>
-                <Text style={styles.dayTitle}>Day {day.day}: {day.topics.join(', ').replace(/_/g, ' ')}</Text>
-                <Text style={styles.dayDuration}>Duration: {day.study_duration}</Text>
-                <Text style={styles.dayActivities}>
-                  Activities: {day.activities.slice(0, 2).join(', ')}...
-                </Text>
-              </View>
-            ))}
-            
-            <Text style={styles.recommendationsTitle}>🤖 AI Recommendations:</Text>
-            <Text style={styles.recommendationsText}>{studyPlan.ai_recommendations}</Text>
-          </View>
+  if (!userId) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>🔐 Please Log In</Text>
+        <Text style={styles.errorMessage}>You need to be logged in to view your progress.</Text>
+        <TouchableOpacity 
+          style={styles.retryButton} 
+          onPress={() => navigation?.navigate('Login')}
+        >
+          <Text style={styles.retryButtonText}>Go to Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>📊 Your Learning Progress</Text>
+      </View>
+
+      {/* Quiz Results Section */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>📈 Quiz Results</Text>
+        {results.length > 0 ? (
+          results.map((result, index) => (
+            <View key={index} style={styles.resultItem}>
+              <Text style={styles.resultText}>Quiz {index + 1}: {result.score}%</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noDataText}>No quiz results yet. Take your first quiz!</Text>
+        )}
+      </View>
+
+      {/* AI Analysis Section */}
+      {aiAnalysis && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🤖 AI Performance Analysis</Text>
+          {aiAnalysis.performance_summary ? (
+            <View>
+              <Text style={styles.analysisText}>
+                Latest Score: <Text style={styles.scoreText}>{aiAnalysis.performance_summary.latest_score}%</Text>
+              </Text>
+              <Text style={styles.analysisText}>
+                Average Score: <Text style={styles.scoreText}>{aiAnalysis.performance_summary.average_score}%</Text>
+              </Text>
+              <Text style={styles.analysisText}>
+                Performance Level: <Text style={styles.levelText}>{aiAnalysis.performance_summary.performance_level}</Text>
+              </Text>
+              {aiAnalysis.weak_areas && aiAnalysis.weak_areas.length > 0 && (
+                <View style={styles.weakAreasContainer}>
+                  <Text style={styles.weakAreasTitle}>Areas to Focus On:</Text>
+                  {aiAnalysis.weak_areas.map((area, index) => (
+                    <Text key={index} style={styles.weakAreaTag}>{area}</Text>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.noDataText}>{aiAnalysis.message}</Text>
+          )}
         </View>
       )}
 
-      {/* Local Test Results */}
-      <Text style={styles.sectionTitle}>📊 Recent Test Results</Text>
-      {results.length === 0 ? (
-        <Text style={styles.noData}>No test attempts yet.</Text>
-      ) : (
-        results.map((res, index) => (
-          <View key={index} style={styles.card}>
-            <Text style={styles.testLabel}>🧪 Practice Test {res.testNumber}</Text>
-            <Text style={styles.score}>
-              🟢 Score: <Text style={styles.bold}>{res.score}</Text> / {res.total} (
-              {Math.round((res.score / res.total) * 100)}%)
-            </Text>
-            <Text style={styles.date}>📅 {new Date(res.timestamp).toLocaleString()}</Text>
-          </View>
-        ))
+      {/* Study Plan Section */}
+      {studyPlan && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📚 Personalized Study Plan</Text>
+          {studyPlan.recommendations ? (
+            <View>
+              {studyPlan.recommendations.map((recommendation, index) => (
+                <Text key={index} style={styles.recommendationText}>
+                  • {recommendation}
+                </Text>
+              ))}
+              <Text style={styles.studyTimeText}>
+                Estimated Study Time: <Text style={styles.highlight}>{studyPlan.estimated_study_time}</Text>
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.noDataText}>No study plan available yet.</Text>
+          )}
+        </View>
       )}
+
+      {/* Action Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.aiButton} 
+          onPress={() => navigation?.navigate('Quiz')}
+        >
+          <Text style={styles.aiButtonText}>Take New Quiz</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.aiButton} 
+          onPress={retryFetch}
+        >
+          <Text style={styles.aiButtonText}>Refresh Data</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    flexGrow: 1,
-    backgroundColor: '#0a2540', // dark background to match app theme
+    flex: 1,
+    backgroundColor: '#0a2540',
   },
-  title: {
-    fontSize: 28,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a2540',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#d0d7de',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#0a2540',
+  },
+  errorTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#f5c518',
-    marginBottom: 20,
+    color: '#ff6b6b',
+    marginBottom: 10,
     textAlign: 'center',
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#00d4aa',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  aiSection: {
+  errorMessage: {
+    fontSize: 16,
+    color: '#d0d7de',
+    textAlign: 'center',
     marginBottom: 20,
   },
-  analysisCard: {
+  retryButton: {
+    backgroundColor: '#00d4aa',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  retryButtonText: {
+    color: '#0a2540',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  header: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  card: {
     backgroundColor: '#142a4c',
-    padding: 15,
+    margin: 16,
+    padding: 20,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ff6b6b',
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#74c0fc',
+    marginBottom: 16,
+  },
+  resultItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1c2937',
+  },
+  resultText: {
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#d0d7de',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 20,
   },
   analysisText: {
     fontSize: 16,
-    color: '#fff',
+    color: '#ffffff',
     marginBottom: 8,
   },
   scoreText: {
@@ -381,61 +377,47 @@ const styles = StyleSheet.create({
     color: '#f5c518',
     textTransform: 'capitalize',
   },
-  trendText: {
-    fontWeight: 'bold',
-    color: '#74c0fc',
+  weakAreasContainer: {
+    marginTop: 16,
   },
-  weakText: {
-    fontWeight: 'bold',
-    color: '#ff6b6b',
-    textTransform: 'capitalize',
-  },
-  progressSection: {
-    marginBottom: 20,
-  },
-  progressCard: {
-    backgroundColor: '#142a4c',
-    padding: 15,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#74c0fc',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  progressText: {
+  weakAreasTitle: {
     fontSize: 16,
-    color: '#fff',
+    fontWeight: '600',
+    color: '#74c0fc',
     marginBottom: 8,
   },
-  progressPercent: {
-    fontWeight: 'bold',
-    color: '#00d4aa',
-  },
-  pointsNeeded: {
-    fontWeight: 'bold',
+  weakAreaTag: {
+    backgroundColor: '#1c2937',
     color: '#ff6b6b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    fontSize: 14,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ff6b6b',
   },
-  successProb: {
-    fontWeight: 'bold',
-    color: '#f5c518',
-  },
-  nextStepsTitle: {
+  recommendationText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#74c0fc',
-    marginTop: 10,
-    marginBottom: 5,
+    color: '#d0d7de',
+    marginBottom: 8,
+    lineHeight: 24,
   },
-  nextStep: {
+  studyTimeText: {
     fontSize: 14,
     color: '#d0d7de',
-    marginBottom: 3,
+    fontStyle: 'italic',
+    marginTop: 12,
+  },
+  highlight: {
+    fontWeight: 'bold',
+    color: '#f5c518',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginHorizontal: 16,
     marginVertical: 20,
   },
   aiButton: {
@@ -453,121 +435,5 @@ const styles = StyleSheet.create({
     color: '#0a2540',
     fontWeight: 'bold',
     fontSize: 16,
-  },
-  disabledButton: {
-    backgroundColor: '#555',
-  },
-  studyPlanSection: {
-    marginBottom: 20,
-  },
-  studyPlanCard: {
-    backgroundColor: '#142a4c',
-    padding: 15,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f5c518',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  studyPlanText: {
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 8,
-  },
-  highlight: {
-    fontWeight: 'bold',
-    color: '#f5c518',
-  },
-  recommendationsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#74c0fc',
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  recommendationsText: {
-    fontSize: 14,
-    color: '#d0d7de',
-    lineHeight: 20,
-  },
-  noData: {
-    fontSize: 16,
-    color: '#d0d7de',
-    textAlign: 'center',
-    marginTop: 40,
-  },
-  card: {
-    backgroundColor: '#142a4c',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  testLabel: {
-    fontSize: 18,
-    color: '#f5c518',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  score: {
-    fontSize: 16,
-    color: '#ffffff',
-    marginBottom: 6,
-  },
-  bold: {
-    fontWeight: 'bold',
-    color: '#4cd137',
-  },
-  date: {
-    fontSize: 14,
-    color: '#7a8fa6',
-  },
-  infoText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 10,
-  },
-  subsectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#74c0fc',
-    marginTop: 15,
-    marginBottom: 8,
-  },
-  materialItem: {
-    fontSize: 14,
-    color: '#d0d7de',
-    marginBottom: 4,
-    paddingLeft: 10,
-  },
-  daySchedule: {
-    backgroundColor: '#1c2937',
-    padding: 10,
-    marginVertical: 5,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#00d4aa',
-  },
-  dayTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#74c0fc',
-    marginBottom: 3,
-  },
-  dayDuration: {
-    fontSize: 12,
-    color: '#a5a5a5',
-    marginBottom: 2,
-  },
-  dayActivities: {
-    fontSize: 12,
-    color: '#d0d7de',
   },
 });
