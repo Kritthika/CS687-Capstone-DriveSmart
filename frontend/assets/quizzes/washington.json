@@ -1,0 +1,116 @@
+{
+  "state": "Washington",
+  "abbreviation": "WA",
+  "icon": "☁️",
+  "description": "Pacific Northwest driving regulations",
+  "tests": {
+    "1": {
+      "title": "Washington Basic Rules Test 1",
+      "description": "Fundamental driving laws and regulations for Washington state",
+      "questions": [
+        {
+          "question": "What is the speed limit in Washington residential areas unless otherwise posted?",
+          "options": ["20 mph", "25 mph", "30 mph", "35 mph"],
+          "correct_answer": "25 mph",
+          "explanation": "Washington state law sets residential speed limits at 25 mph unless otherwise posted."
+        },
+        {
+          "question": "In Washington, when must you yield the right-of-way to pedestrians?",
+          "options": ["Only at crosswalks", "At all intersections", "Only when they have a walk signal", "At crosswalks and when turning"],
+          "correct_answer": "At crosswalks and when turning",
+          "explanation": "In Washington, drivers must yield to pedestrians in crosswalks and when making turns."
+        },
+        {
+          "question": "What is the minimum following distance recommended in Washington?",
+          "options": ["1 second", "2 seconds", "3 seconds", "4 seconds"],
+          "correct_answer": "3 seconds",
+          "explanation": "The 3-second rule provides adequate following distance for normal conditions."
+        },
+        {
+          "question": "In Washington, you cannot park within how many feet of a fire hydrant?",
+          "options": ["10 feet", "15 feet", "20 feet", "25 feet"],
+          "correct_answer": "15 feet",
+          "explanation": "Washington law requires parking at least 15 feet away from fire hydrants."
+        },
+        {
+          "question": "What should you do when approaching a school bus with flashing red lights?",
+          "options": ["Slow down", "Change lanes", "Stop completely", "Proceed with caution"],
+          "correct_answer": "Stop completely",
+          "explanation": "When a school bus has flashing red lights, all traffic must stop in both directions."
+        }
+      ]
+    },
+    "2": {
+      "title": "Washington Traffic Signs Test 2",
+      "description": "Recognition and understanding of traffic signs specific to Washington",
+      "questions": [
+        {
+          "question": "What does a octagonal red sign mean?",
+          "options": ["Yield", "Caution", "Stop", "No entry"],
+          "correct_answer": "Stop",
+          "explanation": "An octagonal red sign is always a stop sign, requiring a complete stop."
+        },
+        {
+          "question": "A triangular sign pointing down means:",
+          "options": ["Stop", "Yield", "Merge", "Caution"],
+          "correct_answer": "Yield",
+          "explanation": "Triangular signs pointing down indicate yield - slow down and give right-of-way."
+        },
+        {
+          "question": "Orange construction signs mean:",
+          "options": ["Road work ahead", "School zone", "Hospital zone", "Recreation area"],
+          "correct_answer": "Road work ahead",
+          "explanation": "Orange signs indicate construction zones and temporary traffic control."
+        },
+        {
+          "question": "A circular sign with a red circle and line means:",
+          "options": ["Caution", "Information", "Prohibition", "Warning"],
+          "correct_answer": "Prohibition",
+          "explanation": "Red circle with diagonal line indicates something is prohibited."
+        },
+        {
+          "question": "Green signs on highways typically indicate:",
+          "options": ["Warnings", "Regulations", "Directions", "Construction"],
+          "correct_answer": "Directions",
+          "explanation": "Green highway signs provide directional information and distances."
+        }
+      ]
+    },
+    "3": {
+      "title": "Washington Parking & Right-of-Way Test 3",
+      "description": "Parking regulations and right-of-way rules for Washington drivers",
+      "questions": [
+        {
+          "question": "At a 4-way stop, who has the right-of-way?",
+          "options": ["The largest vehicle", "The first to arrive", "Vehicles going straight", "The vehicle on the right"],
+          "correct_answer": "The first to arrive",
+          "explanation": "At 4-way stops, the first vehicle to arrive and come to a complete stop has the right-of-way."
+        },
+        {
+          "question": "You cannot park within how many feet of a crosswalk?",
+          "options": ["15 feet", "20 feet", "25 feet", "30 feet"],
+          "correct_answer": "20 feet",
+          "explanation": "Washington prohibits parking within 20 feet of crosswalks to maintain visibility."
+        },
+        {
+          "question": "When making a left turn, yield to:",
+          "options": ["No one", "Oncoming traffic", "Right turning traffic", "Pedestrians only"],
+          "correct_answer": "Oncoming traffic",
+          "explanation": "Left-turning vehicles must yield to oncoming traffic and pedestrians."
+        },
+        {
+          "question": "Parallel parking requires you to be within how many inches of the curb?",
+          "options": ["6 inches", "12 inches", "18 inches", "24 inches"],
+          "correct_answer": "12 inches",
+          "explanation": "When parallel parking, your vehicle should be within 12 inches of the curb."
+        },
+        {
+          "question": "In a roundabout, yield to:",
+          "options": ["Entering traffic", "Traffic already in the roundabout", "Pedestrians only", "No one"],
+          "correct_answer": "Traffic already in the roundabout",
+          "explanation": "When entering a roundabout, yield to traffic already circulating inside."
+        }
+      ]
+    }
+  }
+}

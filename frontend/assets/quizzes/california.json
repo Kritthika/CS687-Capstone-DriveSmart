@@ -1,0 +1,116 @@
+{
+  "state": "California",
+  "abbreviation": "CA",
+  "icon": "☀️",
+  "description": "Golden State driving regulations and laws",
+  "tests": {
+    "1": {
+      "title": "California Basic Rules Test 1",
+      "description": "Fundamental driving laws and regulations for California state",
+      "questions": [
+        {
+          "question": "What is the speed limit in California residential areas unless otherwise posted?",
+          "options": ["20 mph", "25 mph", "30 mph", "35 mph"],
+          "correct_answer": "25 mph",
+          "explanation": "California residential areas have a default speed limit of 25 mph unless posted otherwise."
+        },
+        {
+          "question": "In California, you must use headlights when visibility is less than:",
+          "options": ["500 feet", "750 feet", "1000 feet", "1500 feet"],
+          "correct_answer": "1000 feet",
+          "explanation": "California requires headlights when visibility is less than 1000 feet."
+        },
+        {
+          "question": "California's hands-free law prohibits drivers from:",
+          "options": ["Eating while driving", "Talking on handheld phones", "Using GPS", "Adjusting radio"],
+          "correct_answer": "Talking on handheld phones",
+          "explanation": "California prohibits the use of handheld electronic devices while driving."
+        },
+        {
+          "question": "You must stop for a school bus when:",
+          "options": ["It's parked", "Red lights are flashing", "It's yellow", "Children are visible"],
+          "correct_answer": "Red lights are flashing",
+          "explanation": "Stop for school buses when red lights are flashing, regardless of direction."
+        },
+        {
+          "question": "In California, the maximum speed limit on most freeways is:",
+          "options": ["55 mph", "65 mph", "70 mph", "75 mph"],
+          "correct_answer": "65 mph",
+          "explanation": "Most California freeways have a maximum speed limit of 65 mph unless posted higher."
+        }
+      ]
+    },
+    "2": {
+      "title": "California Traffic Signs Test 2", 
+      "description": "Recognition and understanding of traffic signs specific to California",
+      "questions": [
+        {
+          "question": "A yellow diamond sign typically indicates:",
+          "options": ["Stop ahead", "Warning", "No parking", "Speed limit"],
+          "correct_answer": "Warning",
+          "explanation": "Yellow diamond signs are warning signs that alert drivers to potential hazards."
+        },
+        {
+          "question": "What does a white rectangular sign usually indicate?",
+          "options": ["Warning", "Regulation", "Information", "Construction"],
+          "correct_answer": "Regulation",
+          "explanation": "White rectangular signs typically show regulatory information like speed limits."
+        },
+        {
+          "question": "Brown signs in California indicate:",
+          "options": ["Hazards", "Recreation areas", "Construction", "Emergency services"],
+          "correct_answer": "Recreation areas",
+          "explanation": "Brown signs provide information about recreational and cultural areas."
+        },
+        {
+          "question": "A red circle with a diagonal line means:",
+          "options": ["Caution", "Prohibited", "Required", "Information"],
+          "correct_answer": "Prohibited",
+          "explanation": "Red circle with diagonal line indicates something is not allowed."
+        },
+        {
+          "question": "Blue signs typically indicate:",
+          "options": ["Warnings", "Services", "Regulations", "Hazards"],
+          "correct_answer": "Services",
+          "explanation": "Blue signs indicate services like gas, food, and lodging."
+        }
+      ]
+    },
+    "3": {
+      "title": "California Parking & Intersections Test 3",
+      "description": "California-specific parking rules and intersection navigation",
+      "questions": [
+        {
+          "question": "You cannot park within how many feet of a fire hydrant in California?",
+          "options": ["10 feet", "15 feet", "20 feet", "25 feet"],
+          "correct_answer": "15 feet",
+          "explanation": "California law prohibits parking within 15 feet of fire hydrants."
+        },
+        {
+          "question": "When turning right on red in California, you must:",
+          "options": ["Stop first", "Slow down", "Yield only", "Check mirrors"],
+          "correct_answer": "Stop first",
+          "explanation": "Right turns on red require a complete stop first, then proceed when safe."
+        },
+        {
+          "question": "At an intersection with no signs or signals, yield to:",
+          "options": ["No one", "Traffic on your left", "Traffic on your right", "Larger vehicles"],
+          "correct_answer": "Traffic on your right",
+          "explanation": "At unsigned intersections, yield to vehicles approaching from your right."
+        },
+        {
+          "question": "California's move over law requires you to:",
+          "options": ["Stop completely", "Change lanes or slow down", "Use hazard lights", "Call 911"],
+          "correct_answer": "Change lanes or slow down",
+          "explanation": "When passing emergency vehicles, change lanes or reduce speed significantly."
+        },
+        {
+          "question": "You may park in a bike lane:",
+          "options": ["Never", "For 5 minutes", "When loading/unloading", "During emergencies only"],
+          "correct_answer": "Never",
+          "explanation": "Parking in bike lanes is prohibited at all times in California."
+        }
+      ]
+    }
+  }
+}

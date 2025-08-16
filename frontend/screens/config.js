@@ -5,8 +5,8 @@ const isSimulator = () => {
   return process.env.NODE_ENV === 'development';
 };
 
-// Use the IP address from your Flask server output: 10.30.16.84:5002
-export const BASE_URL = process.env.REACT_APP_API_URL || 'http://10.30.16.84:5002';
+// Use environment variable or fallback to IP address
+export const BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.22:5001';
 
 export const API_ENDPOINTS = {
   LOGIN: '/login',

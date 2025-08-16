@@ -4,17 +4,23 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
+// Authentication screens
+import LoginScreen from './screens/auth/LoginScreen';
+import RegisterScreen from './screens/auth/RegisterScreen';
+import LogoutScreen from './screens/auth/LogoutScreen';
 
+// Main screens
 import HomeScreen from './screens/HomeScreen';
-import QuizScreen from './screens/QuizScreen';
-import PracticeTestScreen from './screens/PracticeTestScreen';
-import QuizReviewScreen from './screens/QuizReviewScreen';
-import ChatbotScreen from './screens/ChatbotScreen';
+import StateSelectionScreen from './screens/selection/StateSelectionScreen';
+
+// Quiz screens
+import QuizScreen from './screens/quizzes/QuizScreen';
+import PracticeTestScreen from './screens/quizzes/PracticeTestScreen';
+import QuizReviewScreen from './screens/quizzes/QuizReviewScreen';
+
+// Chat and Progress
+import ChatbotScreen from './screens/chatbot/ChatbotScreen';
 import ProgressScreen from './screens/ProgressScreen';
-import LogoutScreen from './screens/LogoutScreen';
-import StateSelectionScreen from './screens/StateSelectionScreen';
 import RulesScreen from './screens/RulesScreen';
 
 const Tab = createBottomTabNavigator();

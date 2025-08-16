@@ -3,9 +3,15 @@ Flask-CORS==4.0.0
 requests==2.31.0
 python-dotenv==1.0.0
 ollama==0.1.7
-ollama==0.1.7
 gunicorn==21.2.0
 pytest==7.4.2
 pytest-flask==1.2.0
 black==23.9.1
 flake8==6.1.0
+# RAG Enhancement Dependencies
+langchain==0.0.350
+langchain-community==0.0.38
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
+PyPDF2==3.0.1
+chromadb==0.4.18

@@ -7,6 +7,7 @@ export default function ProgressScreen({ route, navigation }) {
   const [results, setResults] = useState([]);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [studyPlan, setStudyPlan] = useState(null);
+  const [progressData, setProgressData] = useState(null); // Add progress tracking data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -56,6 +57,9 @@ export default function ProgressScreen({ route, navigation }) {
       
       // Fetch study plan
       await fetchStudyPlan(currentUserId);
+      
+      // Fetch progress tracking data
+      await fetchProgressTracking(currentUserId);
 
     } catch (err) {
       console.error('Error fetching progress:', err);
@@ -137,6 +141,49 @@ export default function ProgressScreen({ route, navigation }) {
       // Don't throw here, just set null - this is optional data
       setStudyPlan(null);
     }
+  };
+
+  const fetchProgressTracking = async (currentUserId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/ai/progress-tracking`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: currentUserId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setProgressData(data);
+      } else {
+        setProgressData(null);
+      }
+    } catch (err) {
+      console.error('Error fetching progress tracking:', err);
+      setProgressData(null);
+    }
+  };
+
+  const getProgressColor = (percentage) => {
+    if (percentage >= 80) return '#4CAF50'; // Green
+    if (percentage >= 60) return '#FF9800'; // Orange
+    return '#F44336'; // Red
+  };
+
+  const getPerformanceLevel = (level) => {
+    const levels = {
+      'Excellent': { color: '#4CAF50', icon: '🌟' },
+      'Good': { color: '#2196F3', icon: '👍' },
+      'Fair': { color: '#FF9800', icon: '📚' },
+      'Needs Improvement': { color: '#F44336', icon: '📖' }
+    };
+    return levels[level] || { color: '#757575', icon: '📊' };
   };
 
   const retryFetch = () => {
