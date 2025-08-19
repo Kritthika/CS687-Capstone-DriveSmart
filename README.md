@@ -12,6 +12,7 @@
 ┌─ ANALYTICS PATH (Smart) ─────────────────────────────────┐
 │ Quiz Results → AI Analysis → RAG from PDFs → Study Tips │
 └──────────────────────────────────────────────────────────┘
+
 ### 🎯 Core Flow
 ```
 User Takes Quiz → Performance Analysis → RAG Retrieval from PDFs → Personalized Study Tips
@@ -20,8 +21,8 @@ User Takes Quiz → Performance Analysis → RAG Retrieval from PDFs → Persona
 ```
 
 ## 🏗️ Clean Architecture
-
 ### Backend (Python/Flask)
+
 ```
 backend/
 ├── ai_study_agent.py       # 🤖 RAG-Enhanced Conversational AI Agent
@@ -31,7 +32,8 @@ backend/
 └── requirements.txt        # 📦 Dependencies
 ```
 
-### Frontend (React Native/Expo)  
+### Frontend (React Native/Expo)
+
 ```
 frontend/
 ├── App.js                  # 📱 Main App Component
