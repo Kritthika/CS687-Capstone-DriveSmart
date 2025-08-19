@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BASE_URL } from './config';
+import { BASE_URL } from '../config';
 
 export default function ProgressScreen({ route, navigation }) {
   const [results, setResults] = useState([]);
@@ -49,21 +49,26 @@ export default function ProgressScreen({ route, navigation }) {
 
       const currentUserId = userIdParam || userId;
 
+      if (!currentUserId) {
+        setError('User ID is required to fetch progress data.');
+        return;
+      }
+
       // Fetch user quiz results
       await fetchQuizResults(currentUserId);
       
-      // Fetch AI analysis
-      await fetchAIAnalysis(currentUserId);
+      // Fetch performance analysis (AI analysis)
+      await fetchPerformanceAnalysis(currentUserId);
       
-      // Fetch study plan
-      await fetchStudyPlan(currentUserId);
+      // Fetch study recommendations (study plan)
+      await fetchStudyRecommendations(currentUserId);
       
       // Fetch progress tracking data
-      await fetchProgressTracking(currentUserId);
+      await fetchProgressData(currentUserId);
 
     } catch (err) {
       console.error('Error fetching progress:', err);
-      setError('Unable to load progress data. Please check your connection.');
+      setError('Unable to load progress data. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -85,14 +90,13 @@ export default function ProgressScreen({ route, navigation }) {
     }
   };
 
-  const fetchAIAnalysis = async (currentUserId) => {
+  const fetchPerformanceAnalysis = async (currentUserId) => {
     try {
-      const response = await fetch(`${BASE_URL}/ai/performance-analysis`, {
-        method: 'POST',
+      const response = await fetch(`${BASE_URL}/api/performance/${currentUserId}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ user_id: currentUserId }),
       });
 
       if (!response.ok) {
@@ -102,27 +106,35 @@ export default function ProgressScreen({ route, navigation }) {
       const data = await response.json();
       
       if (data.status === 'success') {
-        setAiAnalysis(data);
-      } else if (data.status === 'no_data') {
+        // Transform backend data to expected frontend format
+        setAiAnalysis({
+          performance_summary: {
+            latest_score: data.overall_score || 0,
+            average_score: data.overall_score || 0,
+            performance_level: data.performance_level || 'unknown'
+          },
+          weak_areas: data.weak_areas || [],
+          total_quizzes: data.total_quizzes || 0
+        });
+      } else if (data.message === 'No performance data available') {
         setAiAnalysis({ message: 'No quiz data available yet.' });
       } else {
-        throw new Error(data.message || 'Failed to get AI analysis');
+        throw new Error(data.message || 'Failed to get performance analysis');
       }
     } catch (err) {
-      console.error('Error fetching AI analysis:', err);
+      console.error('Error fetching performance analysis:', err);
       // Don't throw here, just set null - this is optional data
       setAiAnalysis(null);
     }
   };
 
-  const fetchStudyPlan = async (currentUserId) => {
+  const fetchStudyRecommendations = async (currentUserId) => {
     try {
-      const response = await fetch(`${BASE_URL}/ai/study-plan`, {
-        method: 'POST',
+      const response = await fetch(`${BASE_URL}/api/study-recommendations/${currentUserId}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ user_id: currentUserId }),
       });
 
       if (!response.ok) {
@@ -131,26 +143,30 @@ export default function ProgressScreen({ route, navigation }) {
 
       const data = await response.json();
       
-      if (data.status === 'success') {
-        setStudyPlan(data);
+      if (data.status === 'success' || data.status === 'fallback') {
+        setStudyPlan({
+          study_tips: data.study_tips || [],
+          feedback_message: data.feedback_message || '',
+          study_time: data.study_time || '20-30 minutes daily',
+          performance_level: data.performance_level || 'unknown'
+        });
       } else {
-        throw new Error(data.message || 'Failed to get study plan');
+        throw new Error(data.message || 'Failed to get study recommendations');
       }
     } catch (err) {
-      console.error('Error fetching study plan:', err);
+      console.error('Error fetching study recommendations:', err);
       // Don't throw here, just set null - this is optional data
       setStudyPlan(null);
     }
   };
 
-  const fetchProgressTracking = async (currentUserId) => {
+  const fetchProgressData = async (currentUserId) => {
     try {
-      const response = await fetch(`${BASE_URL}/ai/progress-tracking`, {
-        method: 'POST',
+      const response = await fetch(`${BASE_URL}/api/progress/${currentUserId}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ user_id: currentUserId }),
       });
 
       if (!response.ok) {
@@ -159,13 +175,20 @@ export default function ProgressScreen({ route, navigation }) {
 
       const data = await response.json();
       
-      if (data.status === 'success') {
-        setProgressData(data);
+      if (data.status === 'success' || data.status === 'basic') {
+        setProgressData({
+          current_score: data.current_score || 0,
+          target_score: data.target_score || 80,
+          progress_percentage: data.progress_percentage || 0,
+          total_quizzes: data.total_quizzes || 0,
+          performance_level: data.performance_level || 'unknown',
+          ready_for_test: data.ready_for_test || false
+        });
       } else {
         setProgressData(null);
       }
     } catch (err) {
-      console.error('Error fetching progress tracking:', err);
+      console.error('Error fetching progress data:', err);
       setProgressData(null);
     }
   };
@@ -285,15 +308,18 @@ export default function ProgressScreen({ route, navigation }) {
       {studyPlan && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>📚 Personalized Study Plan</Text>
-          {studyPlan.recommendations ? (
+          {studyPlan.study_tips && studyPlan.study_tips.length > 0 ? (
             <View>
-              {studyPlan.recommendations.map((recommendation, index) => (
+              {studyPlan.feedback_message && (
+                <Text style={styles.feedbackText}>{studyPlan.feedback_message}</Text>
+              )}
+              {studyPlan.study_tips.map((tip, index) => (
                 <Text key={index} style={styles.recommendationText}>
-                  • {recommendation}
+                  {tip}
                 </Text>
               ))}
               <Text style={styles.studyTimeText}>
-                Estimated Study Time: <Text style={styles.highlight}>{studyPlan.estimated_study_time}</Text>
+                Estimated Study Time: <Text style={styles.highlight}>{studyPlan.study_time}</Text>
               </Text>
             </View>
           ) : (
@@ -456,6 +482,13 @@ const styles = StyleSheet.create({
     color: '#d0d7de',
     fontStyle: 'italic',
     marginTop: 12,
+  },
+  feedbackText: {
+    fontSize: 14,
+    color: '#e1f5fe',
+    marginBottom: 12,
+    fontStyle: 'italic',
+    paddingHorizontal: 8,
   },
   highlight: {
     fontWeight: 'bold',

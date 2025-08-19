@@ -26,13 +26,13 @@ except ImportError:
     lightweight_rag = None
 
 def call_ollama_driving_assistant(prompt, state=None):
-    """Simple AI assistant with fast responses"""
+    """Simple AI assistant with fast RAG responses"""
     if lightweight_rag:
         try:
             response = lightweight_rag.chat_with_rag_fast(prompt, state)
             return response.get('response', generate_fallback_response(prompt))
         except Exception as e:
-            print(f"AI assistant error: {e}")
+            print(f"⚠️ RAG error: {e}, using fallback")
             return generate_fallback_response(prompt)
     else:
         return generate_fallback_response(prompt)
@@ -208,24 +208,23 @@ def generate_fallback_response(prompt):
     # Default
     else:
         return "🚗 **I'm here to help!** Ask me about traffic signs, speed limits, right-of-way, parking rules, or driving safety."
-        rag_agent = None
 
-def call_ollama_driving_assistant(prompt, state=None, timeout=10):
+def call_ollama_driving_assistant_rag(prompt, state=None, timeout=10):
     """
-    Main chat function with fast RAG integration and timeout protection
+    RAG-enhanced chat function with fast integration and timeout protection
     """
     start_time = time.time()
     
-    if rag_agent:
+    if lightweight_rag:
         try:
             # Try RAG-enhanced response with timeout
-            response = rag_agent.chat_with_rag_fast(prompt, state)
+            response = lightweight_rag.chat_with_rag_fast(prompt, state)
             elapsed = time.time() - start_time
             print(f"🤖 RAG response in {elapsed:.2f}s")
-            return response
+            return response.get('response', generate_fallback_response(prompt))
         except Exception as e:
             elapsed = time.time() - start_time
-            print(f"⚠️ RAG failed after {elapsed:.2f}s: {e}")
+            print(f"⚠️ RAG error after {elapsed:.2f}s: {e}, using fallback")
             return generate_fallback_response(prompt)
     else:
         return generate_fallback_response(prompt)

@@ -28,12 +28,16 @@ class LightweightRAGAgent:
                 'right_turn': 'In Washington, you can turn right on red after coming to a complete stop, unless posted otherwise.',
                 'parking': 'In Washington, park at least 5 feet from fire hydrants and 30 feet from stop signs.',
                 'school_zones': 'Washington school zones are typically 20 mph when children are present.',
+                'dui': 'In Washington, BAC limit is 0.08% for drivers 21+, 0.02% for under 21.',
+                'seatbelt': 'Washington requires all occupants to wear seatbelts. Children under 8 must use car seats.',
             },
             'california': {
                 'speed_limit': 'In California, residential speed limits are 25 mph, business districts 25 mph, and highways 65-70 mph.',
                 'right_turn': 'In California, you can turn right on red after stopping, unless posted otherwise.',
                 'parking': 'In California, park at least 15 feet from fire hydrants and 30 feet from stop signs.',
                 'school_zones': 'California school zones are typically 25 mph when children are present.',
+                'dui': 'In California, BAC limit is 0.08% for drivers 21+, 0.01% for under 21.',
+                'seatbelt': 'California requires all occupants to wear seatbelts. Children under 8 must use car seats.',
             }
         }
     
@@ -85,10 +89,20 @@ class LightweightRAGAgent:
         Get instant response based on keywords - no processing delay
         """
         message_lower = message.lower()
-        state_key = state.lower() if state else 'washington'
+        
+        # Normalize state name (handle abbreviations and full names)
+        state_key = self._normalize_state_name(state) if state else 'washington'
         
         # Get state knowledge base
         knowledge = self.quick_knowledge.get(state_key, self.quick_knowledge['washington'])
+        
+        # DUI/DWI questions
+        if any(word in message_lower for word in ['dui', 'dwi', 'drunk', 'alcohol', 'bac', 'blood alcohol']):
+            return f"🚫 {knowledge['dui']} Never drive under the influence - use rideshare or designated driver."
+        
+        # Seatbelt questions
+        if any(word in message_lower for word in ['seatbelt', 'seat belt', 'child seat', 'car seat']):
+            return f"🔒 {knowledge['seatbelt']} Seatbelts save lives - always buckle up before driving."
         
         # Speed limit questions
         if any(word in message_lower for word in ['speed', 'mph', 'limit', 'fast']):
@@ -115,6 +129,25 @@ class LightweightRAGAgent:
             return "🚦 Green = go, Yellow = prepare to stop if safe, Red = complete stop. Always yield to pedestrians."
         
         return None
+    
+    def _normalize_state_name(self, state: str) -> str:
+        """
+        Convert state abbreviations and variations to standard lowercase names
+        """
+        if not state:
+            return 'washington'
+            
+        state_lower = state.lower().strip()
+        
+        # State abbreviation mapping - only Washington and California
+        abbreviations = {
+            'wa': 'washington',
+            'washington': 'washington',
+            'ca': 'california', 
+            'california': 'california'
+        }
+        
+        return abbreviations.get(state_lower, 'washington')
     
     def _try_ollama_fast(self, message: str, state: str = None) -> str:
         """

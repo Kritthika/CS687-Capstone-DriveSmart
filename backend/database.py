@@ -53,6 +53,14 @@ def init_db():
             )
         ''')
         
+        # Add date_taken column if it doesn't exist (migration)
+        try:
+            cursor.execute("ALTER TABLE quiz_results ADD COLUMN date_taken TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            print("✅ Added date_taken column to quiz_results table")
+        except sqlite3.OperationalError:
+            # Column already exists, that's fine
+            pass
+        
         # Quiz questions table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS quiz_questions (

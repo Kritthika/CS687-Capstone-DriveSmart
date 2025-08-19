@@ -8,460 +8,670 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BASE_URL } from './config';
-import { getStateQuiz, getQuizMetadata } from './stateQuizzes/stateQuizManager';
-
-// Fallback to original tests if state-specific not available
-import {
-  practiceTest1,
-  practiceTest2,
-  practiceTest3,
-  practiceTest4,
-  practiceTest5,
-} from './practiceTests';
-
-const fallbackTestMap = {
-  1: practiceTest1,
-  2: practiceTest2,
-  3: practiceTest3,
-  4: practiceTest4,
-  5: practiceTest5,
-};
+import { BASE_URL } from '../config';
 
 export default function PracticeTestScreen({ route, navigation }) {
-  const { testNumber, state } = route.params;
-  const [questions, setQuestions] = useState([]);
-  const [quizMetadata, setQuizMetadata] = useState(null);
+  const { testNumber, state, quizTitle, quizQuestions } = route.params;
+  
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [userAnswers, setUserAnswers] = useState([]); // Track all user answers
+  const [userAnswers, setUserAnswers] = useState([]);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
 
+  // Initialize quiz when component mounts
   useEffect(() => {
-    loadQuiz();
-  }, [state, testNumber]);
-
-  const loadQuiz = async () => {
-    try {
-      let selectedQuiz = null;
-      let metadata = null;
-
-      // Try to get state-specific quiz first
-      if (state) {
-        selectedQuiz = getStateQuiz(state, testNumber);
-        metadata = getQuizMetadata(state, testNumber);
-      }
-
-      // Fallback to default quiz if state-specific not found
-      if (!selectedQuiz) {
-        selectedQuiz = fallbackTestMap[testNumber];
-        metadata = {
-          state: state || 'General',
-          testNumber,
-          totalQuestions: selectedQuiz?.length || 0,
-          title: `${state || 'General'} Practice Test ${testNumber}`,
-          description: `Practice test with ${selectedQuiz?.length || 0} questions`,
-        };
-      }
-
-      if (selectedQuiz) {
-        setQuestions(selectedQuiz);
-        setQuizMetadata(metadata);
-      } else {
-        Alert.alert('Error', 'Quiz not found', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error loading quiz:', error);
-      Alert.alert('Error', 'Failed to load quiz', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+    if (!quizQuestions || quizQuestions.length === 0) {
+      Alert.alert('Error', 'No quiz questions available');
+      navigation.goBack();
+      return;
     }
-  };
+    
+    // Initialize user answers array with null values
+    setUserAnswers(new Array(quizQuestions.length).fill(null));
+  }, [quizQuestions]);
 
-  // Rest of the component remains the same
-  const currentQuestion = questions[currentIndex];
-
-  const handleOptionPress = (option) => {
+  const handleAnswerSelect = (option) => {
     setSelectedOption(option);
     
-    // Store the user's answer
-    const newAnswers = [...userAnswers];
-    newAnswers[currentIndex] = option;
-    setUserAnswers(newAnswers);
-    
-    if (option === currentQuestion?.answer) {
-      setScore((prev) => prev + 1);
+    // Update user answers array
+    const updatedAnswers = [...userAnswers];
+    updatedAnswers[currentIndex] = option;
+    setUserAnswers(updatedAnswers);
+  };
+
+  const nextQuestion = () => {
+    if (currentIndex < quizQuestions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setSelectedOption(userAnswers[currentIndex + 1]); 
+    } else {
+      finishQuiz();
     }
   };
 
-  const storeScore = async () => {
+  const previousQuestion = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setSelectedOption(userAnswers[currentIndex - 1]); // Load previously selected answer
+    }
+  };
+
+  const finishQuiz = () => {
+    const finalScore = calculateScore();
+    setScore(finalScore);
+    setCompleted(true);
+    
+    // Save quiz results to AsyncStorage
+    saveQuizResult(finalScore);
+    
+    // Send results to backend for AI analysis
+    sendQuizResultsToBackend(finalScore);
+  };
+
+  const calculateScore = () => {
+    let correct = 0;
+    userAnswers.forEach((answer, index) => {
+      if (answer === quizQuestions[index].correct_answer) {
+        correct++;
+      }
+    });
+    return Math.round((correct / quizQuestions.length) * 100);
+  };
+
+  const saveQuizResult = async (finalScore) => {
     try {
-      const timestamp = new Date().toISOString();
       const result = {
+        state,
         testNumber,
-        state: state || 'General',
-        score,
-        total: questions.length,
-        timestamp,
+        title: quizTitle,
+        score: finalScore,
+        totalQuestions: quizQuestions.length,
+        correctAnswers: userAnswers.filter((answer, index) => 
+          answer === quizQuestions[index].correct_answer
+        ).length,
+        date: new Date().toISOString(),
+        userAnswers: userAnswers,
+        questions: quizQuestions
       };
 
-      // Store locally
-      const existing = await AsyncStorage.getItem('testResults');
-      const results = existing ? JSON.parse(existing) : [];
+      const existingResults = await AsyncStorage.getItem('quizResults');
+      const results = existingResults ? JSON.parse(existingResults) : [];
       results.push(result);
-      await AsyncStorage.setItem('testResults', JSON.stringify(results));
-
-      // Store to backend if user is logged in
-      await storeScoreToBackend(result);
-    } catch (e) {
-      console.error('Failed to save test result:', e);
+      
+      await AsyncStorage.setItem('quizResults', JSON.stringify(results));
+    } catch (error) {
+      console.error('Error saving quiz result:', error);
     }
   };
 
-  const storeScoreToBackend = async (result) => {
+  const sendQuizResultsToBackend = async (finalScore) => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
-        console.log('No user ID found, skipping backend storage');
-        return;
+      // Get user_id from AsyncStorage or use a default value
+      let user_id = 1; // Default user
+      try {
+        const storedUserId = await AsyncStorage.getItem('user_id');
+        if (storedUserId) {
+          user_id = parseInt(storedUserId);
+        }
+      } catch (error) {
+        console.log('No user_id found in storage, using default');
       }
 
-      const response = await fetch(`${BASE_URL}/submit-quiz`, {
+      const requestData = {
+        user_id: user_id,
+        state: state,
+        score: userAnswers.filter((answer, index) => 
+          answer === quizQuestions[index].correct_answer
+        ).length,
+        total_questions: quizQuestions.length,
+        test_number: testNumber,
+        user_answers: userAnswers,
+        questions: quizQuestions
+      };
+
+      console.log('Sending quiz data to backend:', requestData);
+
+      const response = await fetch(`${BASE_URL}/api/quiz-result`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_id: parseInt(userId),
-          test_number: result.testNumber,
-          state: result.state,
-          score: result.score,
-          total_questions: result.total,
-          timestamp: result.timestamp,
-        }),
+        body: JSON.stringify(requestData),
       });
 
-      if (response.ok) {
-        console.log('Score successfully saved to backend');
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to save score to backend:', errorData.message);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Backend response error:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const data = await response.json();
+      console.log('Quiz results submitted successfully:', data);
     } catch (error) {
-      console.error('Backend storage error:', error);
-      // Don't show error to user - local storage is sufficient
+      console.error('Error submitting quiz results:', error);
+      // Don't show alert to user, just log the error
+      // The quiz completion still works without backend submission
     }
   };
 
-  const handleNext = async () => {
-    if (selectedOption === null) {
-      Alert.alert('Please select an option');
-      return;
-    }
-
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex(currentIndex + 1);
-      // Set the selected option to the previously saved answer for this question
-      setSelectedOption(userAnswers[currentIndex + 1] || null);
-    } else {
-      setCompleted(true);
-      await storeScore();  // Save result once at the end
-    }
+  const retakeQuiz = () => {
+    setCurrentIndex(0);
+    setSelectedOption(null);
+    setUserAnswers(new Array(quizQuestions.length).fill(null));
+    setScore(0);
+    setCompleted(false);
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>
-        🚗 {quizMetadata?.title || `Practice Test ${testNumber}`}
-      </Text>
-      
-      {state && (
-        <Text style={styles.stateInfo}>
-          📍 {state} DMV Practice Test
-        </Text>
-      )}
+  if (!quizQuestions || quizQuestions.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>No quiz questions available</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-      {!completed && questions.length > 0 ? (
-        <>
-          <Text style={styles.progress}>
-            Question {currentIndex + 1} of {questions.length}
-          </Text>
-          <View style={styles.card}>
-            <Text style={styles.question}>{currentQuestion?.question}</Text>
-            {currentQuestion?.options.map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.optionButton,
-                  selectedOption === option && styles.selectedOption,
-                ]}
-                onPress={() => handleOptionPress(option)}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    selectedOption === option && styles.selectedOptionText,
-                  ]}
-                >
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+  if (completed) {
+    const correctAnswersCount = userAnswers.filter((answer, index) => 
+      answer === quizQuestions[index].correct_answer
+    ).length;
 
-          <View style={styles.navigationContainer}>
-            {currentIndex > 0 && (
-              <TouchableOpacity 
-                style={styles.previousButton} 
-                onPress={() => {
-                  setCurrentIndex(currentIndex - 1);
-                  setSelectedOption(userAnswers[currentIndex - 1] || null);
-                }}
-              >
-                <Text style={styles.previousButtonText}>← Previous</Text>
-              </TouchableOpacity>
-            )}
-            
-            <TouchableOpacity 
-              style={[styles.nextButton, currentIndex === 0 && styles.nextButtonFullWidth]} 
-              onPress={handleNext}
-            >
-              <Text style={styles.nextButtonText}>
-                {currentIndex + 1 === questions.length ? 'Finish Test' : 'Next Question →'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : completed ? (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultText}>
-            🎉 You scored {score} out of {questions.length}
-          </Text>
-          <Text style={styles.resultPercentage}>
-            {Math.round((score / questions.length) * 100)}% Correct
-          </Text>
-          {state && (
-            <Text style={styles.resultState}>
-              {state} Practice Test Completed
-            </Text>
-          )}
-          
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.reviewButton}
-              onPress={() => navigation.navigate('QuizReview', {
-                questions,
-                userAnswers,
-                score,
-                total: questions.length,
-                testNumber,
-              })}
-            >
-              <Text style={styles.reviewButtonText}>📋 Review Answers</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.restartButton}
-              onPress={() => {
-                setCurrentIndex(0);
-                setScore(0);
-                setSelectedOption(null);
-                setUserAnswers([]);
-                setCompleted(false);
-              }}
-            >
-              <Text style={styles.restartButtonText}>🔄 Restart Test</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>🔙 Back to Tests</Text>
+    return (
+      <ScrollView 
+        contentContainerStyle={styles.resultsContainer}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        style={styles.scrollViewStyle}
+      >
+        <View style={styles.resultsHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>← Back to Tests</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading quiz...</Text>
+
+        <Text style={styles.resultTitle}>🎉 Quiz Complete!</Text>
+        <Text style={styles.resultSubtitle}>{quizTitle}</Text>
+        
+        <View style={styles.scoreCard}>
+          <Text style={styles.scoreText}>{score}%</Text>
+          <Text style={styles.scoreDetails}>
+            {correctAnswersCount} out of {quizQuestions.length} correct
+          </Text>
+          <Text style={styles.scoreEmoji}>
+            {score >= 80 ? '🌟 Excellent!' : score >= 60 ? '👍 Good Job!' : '📚 Keep Studying!'}
+          </Text>
         </View>
-      )}
-    </ScrollView>
+
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewTitle}>📋 Review Your Answers</Text>
+          {quizQuestions.map((question, index) => {
+            const userAnswer = userAnswers[index];
+            const isCorrect = userAnswer === question.correct_answer;
+            
+            return (
+              <View key={index} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewQuestionNumber}>Question {index + 1}</Text>
+                  <View style={[
+                    styles.reviewStatus,
+                    isCorrect ? styles.correctStatus : styles.incorrectStatus
+                  ]}>
+                    <Text style={styles.reviewStatusText}>
+                      {isCorrect ? '✓' : '✗'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.reviewQuestion}>{question.question}</Text>
+                
+                <View style={styles.reviewAnswers}>
+                  <Text style={[styles.reviewAnswer, isCorrect ? styles.correctAnswer : styles.incorrectAnswer]}>
+                    Your Answer: {userAnswer || 'Not answered'}
+                  </Text>
+                  {!isCorrect && (
+                    <Text style={[styles.reviewAnswer, styles.correctAnswer]}>
+                      Correct Answer: {question.correct_answer}
+                    </Text>
+                  )}
+                </View>
+                
+                {question.explanation && (
+                  <View style={styles.explanationContainer}>
+                    <Text style={styles.explanation}>💡 {question.explanation}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={styles.retakeButton} onPress={retakeQuiz}>
+            <Text style={styles.retakeButtonText}>🔄 Retake Quiz</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  const currentQuestion = quizQuestions[currentIndex];
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.progress}>
+            {currentIndex + 1}/{quizQuestions.length}
+          </Text>
+        </View>
+        <Text style={styles.title}>{quizTitle}</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.questionContainer}>
+        <View style={styles.questionCard}>
+          <Text style={styles.questionNumber}>Question {currentIndex + 1}</Text>
+          <Text style={styles.question}>{currentQuestion.question}</Text>
+        </View>
+        
+        <View style={styles.optionsContainer}>
+          {currentQuestion.options.map((option, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.option,
+                selectedOption === option && styles.selectedOption
+              ]}
+              onPress={() => handleAnswerSelect(option)}
+            >
+              <View style={styles.optionContent}>
+                <View style={[
+                  styles.optionLetter,
+                  selectedOption === option && styles.selectedOptionLetter
+                ]}>
+                  <Text style={[
+                    styles.optionLetterText,
+                    selectedOption === option && styles.selectedOptionLetterText
+                  ]}>
+                    {String.fromCharCode(65 + index)}
+                  </Text>
+                </View>
+                <Text style={[
+                  styles.optionText,
+                  selectedOption === option && styles.selectedOptionText
+                ]}>
+                  {option}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      <View style={styles.navigationContainer}>
+        <TouchableOpacity
+          style={[styles.navButton, styles.prevButton, currentIndex === 0 && styles.disabledButton]}
+          onPress={previousQuestion}
+          disabled={currentIndex === 0}
+        >
+          <Text style={[styles.navButtonText, currentIndex === 0 && styles.disabledButtonText]}>
+            Previous
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navButton, styles.nextButton, !selectedOption && styles.disabledButton]}
+          onPress={nextQuestion}
+          disabled={!selectedOption}
+        >
+          <Text style={[styles.nextButtonText, !selectedOption && styles.disabledButtonText]}>
+            {currentIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    padding: 24,
+    flex: 1,
     backgroundColor: '#0a2540',
-    justifyContent: 'center',
+    padding: 16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#f5c518',
-    textAlign: 'center',
-    marginBottom: 10,
+  scrollViewStyle: {
+    flex: 1,
+    backgroundColor: '#0a2540',
   },
-  stateInfo: {
+  resultsContainer: {
+    flexGrow: 1,
+    padding: 16,
+    paddingBottom: 40,
+  },
+  resultsHeader: {
+    marginBottom: 20,
+  },
+  header: {
+    marginBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  backButton: {
+    backgroundColor: '#142a4c',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#00d4aa',
+  },
+  backButtonText: {
     fontSize: 16,
     color: '#00d4aa',
-    textAlign: 'center',
-    marginBottom: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   progress: {
     fontSize: 16,
     color: '#d0d7de',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  card: {
+    fontWeight: '500',
     backgroundColor: '#142a4c',
-    padding: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 12,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#f5c518',
+    textAlign: 'center',
+  },
+  resultTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#f5c518',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  resultSubtitle: {
+    fontSize: 18,
+    color: '#d0d7de',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  questionContainer: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  questionCard: {
+    backgroundColor: '#142a4c',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00d4aa',
     shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  questionNumber: {
+    fontSize: 14,
+    color: '#00d4aa',
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   question: {
-    fontSize: 20,
-    color: '#ffffff',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 26,
+    color: '#d0d7de',
+    fontWeight: '500',
   },
-  optionButton: {
-    backgroundColor: '#1f3a72',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f5c518',
+  optionsContainer: {
+    gap: 12,
+  },
+  option: {
+    backgroundColor: '#142a4c',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#1f3a72',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   selectedOption: {
-    backgroundColor: '#f5c518',
+    borderColor: '#00d4aa',
+    backgroundColor: '#1f3a72',
+    shadowOpacity: 0.3,
+  },
+  optionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  optionLetter: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#7a8fa6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  selectedOptionLetter: {
+    backgroundColor: '#00d4aa',
+  },
+  optionLetterText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0a2540',
+  },
+  selectedOptionLetterText: {
+    color: '#0a2540',
   },
   optionText: {
-    color: '#d0d7de',
     fontSize: 16,
-    textAlign: 'center',
+    color: '#d0d7de',
+    lineHeight: 22,
+    flex: 1,
   },
   selectedOptionText: {
-    color: '#0a2540',
-    fontWeight: 'bold',
-  },
-  nextButton: {
-    backgroundColor: '#f5c518',
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 25,
-    alignItems: 'center',
-    flex: 1,
-    marginLeft: 10,
-  },
-  nextButtonFullWidth: {
-    marginLeft: 0,
-  },
-  nextButtonText: {
-    color: '#0a2540',
-    fontWeight: 'bold',
-    fontSize: 18,
+    color: '#f5c518',
+    fontWeight: '600',
   },
   navigationContainer: {
     flexDirection: 'row',
-    marginTop: 25,
     justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#1f3a72',
+    backgroundColor: '#0a2540',
+    gap: 12,
   },
-  previousButton: {
-    backgroundColor: '#74c0fc',
-    padding: 16,
-    borderRadius: 10,
-    alignItems: 'center',
+  navButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     flex: 1,
-    marginRight: 10,
+    alignItems: 'center',
   },
-  previousButtonText: {
-    color: '#0a2540',
-    fontWeight: 'bold',
+  prevButton: {
+    backgroundColor: '#142a4c',
+    borderWidth: 1,
+    borderColor: '#7a8fa6',
+  },
+  nextButton: {
+    backgroundColor: '#00d4aa',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  disabledButton: {
+    backgroundColor: '#1f3a72',
+    borderColor: '#7a8fa6',
+    opacity: 0.5,
+  },
+  navButtonText: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#d0d7de',
   },
-  buttonContainer: {
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0a2540',
+  },
+  disabledButtonText: {
+    color: '#7a8fa6',
+  },
+  scoreCard: {
+    backgroundColor: '#142a4c',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f5c518',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  scoreText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#f5c518',
+    marginBottom: 8,
+  },
+  scoreDetails: {
+    fontSize: 16,
+    color: '#d0d7de',
+    marginBottom: 8,
+  },
+  scoreEmoji: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#00d4aa',
+  },
+  reviewSection: {
+    marginBottom: 24,
+  },
+  reviewTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#00d4aa',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  reviewCard: {
+    backgroundColor: '#142a4c',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f5c518',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 20,
-    width: '100%',
-  },
-  reviewButton: {
-    backgroundColor: '#00d4aa',
-    padding: 16,
-    borderRadius: 10,
     alignItems: 'center',
-    flex: 0.48,
+    marginBottom: 8,
   },
-  reviewButtonText: {
-    color: '#0a2540',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  resultContainer: {
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  resultText: {
-    fontSize: 22,
-    color: '#f5c518',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  resultPercentage: {
-    fontSize: 18,
-    color: '#00d4aa',
-    marginBottom: 10,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
-  resultState: {
+  reviewQuestionNumber: {
     fontSize: 14,
-    color: '#7a8fa6',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontWeight: '600',
+    color: '#00d4aa',
   },
-  loadingContainer: {
+  reviewStatus: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 50,
   },
-  loadingText: {
-    fontSize: 18,
-    color: '#7a8fa6',
+  correctStatus: {
+    backgroundColor: '#28a745',
   },
-  restartButton: {
-    backgroundColor: '#2196f3',
-    padding: 15,
-    borderRadius: 8,
-    width: '70%',
-    marginBottom: 15,
+  incorrectStatus: {
+    backgroundColor: '#dc3545',
   },
-  restartButtonText: {
+  reviewStatusText: {
     color: 'white',
     fontWeight: 'bold',
-    textAlign: 'center',
+    fontSize: 14,
   },
-  backButton: {
-    padding: 15,
+  reviewQuestion: {
+    fontSize: 16,
+    color: '#d0d7de',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  reviewAnswers: {
+    marginBottom: 12,
+  },
+  reviewAnswer: {
+    fontSize: 14,
+    marginBottom: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  correctAnswer: {
+    color: '#28a745',
+    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+    fontWeight: '600',
+  },
+  incorrectAnswer: {
+    color: '#dc3545',
+    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+    fontWeight: '600',
+  },
+  explanationContainer: {
+    backgroundColor: '#1f3a72',
+    padding: 12,
     borderRadius: 8,
-    width: '70%',
-    borderColor: '#f5c518',
-    borderWidth: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#00d4aa',
   },
-  backButtonText: {
-    color: '#f5c518',
-    textAlign: 'center',
+  explanation: {
+    fontSize: 14,
+    color: '#d0d7de',
+    fontStyle: 'italic',
+    lineHeight: 20,
+  },
+  actionButtonsContainer: {
+    gap: 12,
+  },
+  retakeButton: {
+    backgroundColor: '#00d4aa',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  retakeButtonText: {
+    color: '#0a2540',
+    fontSize: 18,
     fontWeight: 'bold',
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#dc3545',
+    textAlign: 'center',
+    marginBottom: 20,
   },
 });

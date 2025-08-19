@@ -1,12 +1,19 @@
-// Configuration for backend URL
-// Use localhost for simulator, IP address for physical device
-const isSimulator = () => {
-  // In React Native, we can check if we're running on a simulator
-  return process.env.NODE_ENV === 'development';
+// Configuration for backend URL  
+// Use network IP for iOS Simulator compatibility
+import { Platform } from 'react-native';
+
+const getBaseURL = () => {
+  // For development - use the computer's actual network IP
+  // This works reliably for iOS Simulator and physical devices
+  if (__DEV__) {
+    return 'http://10.30.16.44:5001';
+  }
+  
+  // Production URL
+  return 'https://your-production-api.com';
 };
 
-// Use environment variable or fallback to IP address
-export const BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.22:5001';
+export const BASE_URL = getBaseURL();
 
 export const API_ENDPOINTS = {
   LOGIN: '/login',
@@ -15,7 +22,7 @@ export const API_ENDPOINTS = {
   SUBMIT_QUIZ: '/submit-quiz',
   RESULTS: '/results',
   CHAT: '/chat',
-  AI_ANALYSIS: '/ai/performance-analysis',
-  AI_STUDY_PLAN: '/ai/study-plan',
-  AI_PROGRESS: '/ai/progress-tracking',
+  PROGRESS: '/api/progress',
+  PERFORMANCE: '/api/performance',
+  STUDY_RECOMMENDATIONS: '/api/study-recommendations',
 };

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BASE_URL } from './config';
+import { BASE_URL } from '../config';
 
 export default function ChatbotScreen() {
   const [messages, setMessages] = useState([]);
@@ -106,7 +106,7 @@ export default function ChatbotScreen() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`${BASE_URL}/api/chat`, {
+      const response = await fetch(`${BASE_URL}/api/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -168,28 +168,31 @@ export default function ChatbotScreen() {
       const response = await fetch(`${BASE_URL}/api/study-recommendations/${userId}`);
       const data = await response.json();
       
-      if (data.status === 'success') {
-        let recommendationText = `📊 Your Performance: ${data.user_performance.latest_score}/100\n`;
-        recommendationText += `🎯 Target: ${data.user_performance.target_score}/100\n\n`;
+      if (data.status === 'success' || data.status === 'fallback') {
+        let recommendationText = `📊 Performance Analysis:\n`;
+        recommendationText += `Current Score: ${data.performance_score}%\n`;
+        recommendationText += `Level: ${data.performance_level}\n\n`;
         
         if (data.study_tips && data.study_tips.length > 0) {
-          recommendationText += '📚 RAG-Enhanced Study Tips:\n\n';
+          recommendationText += '📚 Study Recommendations:\n\n';
           data.study_tips.forEach((tip, index) => {
-            recommendationText += `${index + 1}. ${tip.area}:\n`;
-            tip.tips.forEach(tipText => {
-              recommendationText += `   • ${tipText}\n`;
-            });
-            recommendationText += `   Sources: ${tip.sources.join(', ')}\n\n`;
+            recommendationText += `${index + 1}. ${tip}\n`;
           });
+          recommendationText += '\n';
         }
         
-        recommendationText += `💡 Recommendation: ${data.recommendation}`;
+        if (data.feedback_message) {
+          recommendationText += `💡 ${data.feedback_message}\n\n`;
+        }
+        
+        recommendationText += `⏰ Recommended Study Time: ${data.study_time}`;
         
         const studyMessage = { 
           id: (Date.now() + 2).toString(), 
           text: recommendationText, 
           fromUser: false,
-          isStudyTips: true
+          isStudyTips: true,
+          ragEnhanced: true
         };
         
         setMessages((prev) => [...prev, studyMessage]);
@@ -205,6 +208,12 @@ export default function ChatbotScreen() {
       
     } catch (error) {
       console.error('Study recommendations error:', error);
+      const errorMessage = { 
+        id: (Date.now() + 2).toString(), 
+        text: 'Unable to load study recommendations. Please try again later.', 
+        fromUser: false 
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     }
   };
 
@@ -215,7 +224,7 @@ export default function ChatbotScreen() {
     ]}>
       {!item.fromUser && (
         <View style={styles.aiIcon}>
-          <Ionicons name="car-outline" size={20} color="#fff" />
+          <Ionicons name="car-sport" size={20} color="#0a2540" />
         </View>
       )}
       
@@ -229,8 +238,8 @@ export default function ChatbotScreen() {
           <View style={styles.ragStatus}>
             <Ionicons 
               name={item.ragEnhanced ? "flash" : "document-text"} 
-              size={12} 
-              color={item.ragEnhanced ? "#4CAF50" : "#FF9800"} 
+              size={14} 
+              color={item.ragEnhanced ? "#00d4aa" : "#f5c518"} 
             />
             <Text style={styles.ragStatusText}>
               {item.ragEnhanced ? "RAG Enhanced" : "Quick Response"}
@@ -263,7 +272,18 @@ export default function ChatbotScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Ionicons name="chatbubble-ellipses" size={24} color="#f5c518" />
+          <Text style={styles.headerTitle}>AI Driving Instructor</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.tipsButton}
+          onPress={showStudyRecommendations}
+        >
+          <Ionicons name="bulb" size={24} color="#00d4aa" />
+        </TouchableOpacity>
+      </View>
       
       <FlatList
         data={messages}
@@ -271,6 +291,7 @@ export default function ChatbotScreen() {
         keyExtractor={(item) => item.id}
         style={styles.messagesList}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.messagesContainer}
       />
       
       <View style={styles.inputContainer}>
@@ -278,7 +299,8 @@ export default function ChatbotScreen() {
           style={styles.textInput}
           value={input}
           onChangeText={setInput}
-          placeholder="Ask about driving rules..."
+          placeholder="Ask about traffic rules, signs, parking..."
+          placeholderTextColor="#7a8fa6"
           multiline
           maxLength={500}
         />
@@ -289,9 +311,9 @@ export default function ChatbotScreen() {
           disabled={loading}
         >
           {loading ? (
-            <Ionicons name="hourglass-outline" size={24} color="#fff" />
+            <Ionicons name="hourglass-outline" size={24} color="#0a2540" />
           ) : (
-            <Ionicons name="send" size={24} color="#fff" />
+            <Ionicons name="send" size={24} color="#0a2540" />
           )}
         </TouchableOpacity>
       </View>
@@ -302,133 +324,176 @@ export default function ChatbotScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a2540',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#142a4c',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#1f3a72',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginLeft: 8,
+    color: '#f5c518',
+    marginLeft: 12,
   },
   tipsButton: {
+    backgroundColor: '#1f3a72',
     padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#00d4aa',
   },
   messagesList: {
     flex: 1,
+  },
+  messagesContainer: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   messageContainer: {
     flexDirection: 'row',
-    marginVertical: 8,
+    marginVertical: 6,
   },
   userMessage: {
     justifyContent: 'flex-end',
+    marginLeft: 50,
   },
   aiMessage: {
     justifyContent: 'flex-start',
+    marginRight: 50,
   },
   aiIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2196F3',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#00d4aa',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
     marginTop: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   messageBubble: {
-    maxWidth: '80%',
+    flex: 1,
     padding: 12,
     borderRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   userBubble: {
-    backgroundColor: '#2196F3',
-    alignSelf: 'flex-end',
+    backgroundColor: '#00d4aa',
+    borderTopRightRadius: 4,
   },
   aiBubble: {
-    backgroundColor: '#fff',
+    backgroundColor: '#142a4c',
+    borderTopLeftRadius: 4,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#1f3a72',
   },
   studyTipsBubble: {
-    backgroundColor: '#e8f5e8',
-    borderColor: '#4caf50',
+    backgroundColor: '#1f3a72',
+    borderColor: '#f5c518',
+    borderWidth: 2,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
   },
   userText: {
-    color: '#fff',
+    color: '#0a2540',
+    fontWeight: '500',
   },
   aiText: {
-    color: '#333',
+    color: '#d0d7de',
   },
   studyTipsText: {
-    color: '#2e7d32',
-    fontFamily: 'monospace',
+    color: '#f5c518',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 14,
   },
   conceptImage: {
     width: '100%',
     height: 150,
-    marginTop: 8,
+    marginTop: 12,
     borderRadius: 8,
+    backgroundColor: '#1f3a72',
   },
   ragStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 3,
+    backgroundColor: 'rgba(15, 42, 64, 0.7)',
     borderRadius: 12,
     alignSelf: 'flex-start',
   },
   ragStatusText: {
-    fontSize: 10,
-    color: '#666',
+    fontSize: 11,
+    color: '#7a8fa6',
     marginLeft: 4,
     fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#142a4c',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: '#1f3a72',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 2,
+    borderColor: '#1f3a72',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginRight: 8,
+    marginRight: 12,
     maxHeight: 100,
     fontSize: 16,
+    color: '#d0d7de',
+    backgroundColor: '#0a2540',
   },
   sendButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#00d4aa',
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
   sendButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#7a8fa6',
+    opacity: 0.6,
   },
 });
