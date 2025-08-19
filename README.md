@@ -1,6 +1,4 @@
-Here’s a fully **Markdown-ready README** version of your project:
 
-```markdown
 # 📋 DriveSmart - AI-Enhanced Driving Education App
 
 **DriveSmart** is a clean, simplified driving education app focused on **Quiz Score → AI Analysis → RAG from PDFs → Study Tips**, powered by a RAG-enhanced conversational AI agent.
@@ -173,11 +171,3 @@ npx expo start  # Runs on http://localhost:8081
 Happy Driving & Learning with DriveSmart! 🚗💡
 ```
 
-```
-
-This is **ready to drop into a GitHub repository**. It supports code blocks, flow diagrams, emojis, and headings.  
-
-If you want, I can also **add collapsible sections** for “Backend” and “Frontend” to make it more compact for GitHub README.  
-
-Do you want me to do that?
-```
