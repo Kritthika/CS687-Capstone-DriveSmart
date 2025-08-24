@@ -61,9 +61,28 @@ export default function AuthScreen({ navigation }) {
           await AsyncStorage.setItem('username', username);
           
           console.log('✅ Login successful, navigating to Main');
-          Alert.alert('Success', 'Login successful!', [
-            { text: 'OK', onPress: () => navigation.replace('Main') }
-          ]);
+          
+          // Clear form
+          setUsername('');
+          setPassword('');
+          
+          // Navigate immediately for better web compatibility
+          try {
+            navigation.replace('Main');
+            console.log('✅ Navigation to Main completed');
+          } catch (navError) {
+            console.error('❌ Navigation error:', navError);
+            // Fallback navigation
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Main' }],
+            });
+          }
+          
+          // Show success message after navigation (optional for mobile)
+          setTimeout(() => {
+            Alert.alert('Success', 'Welcome to DriveSmart!');
+          }, 500);
         } else {
           console.log('✅ Registration successful');
           Alert.alert('Success', 'Registration successful! Please login.', [

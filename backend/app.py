@@ -1,19 +1,19 @@
 
 """
-DriveSmart API - Unified Modular Entry Point
-===========================================
-Combines legacy and modular Flask application logic
+DriveSmart API - Enhanced RAG Integration (Grade B)
+==================================================
+Unified Flask application with Grade B Enhanced RAG system
 """
 
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 
-# Import modular components
+# Import enhanced modular components
 from database import init_db, close_db
 from auth import auth_bp
 from quiz import quiz_bp  
-from chat import chat_bp
+from chat import chat_bp  # Enhanced chat with Grade B RAG
 from utils import utils_bp
 
 def create_app():

@@ -40,10 +40,11 @@ def health_check():
             'services': {
                 'database': db_health,
                 'system': system_health,
-                'rag_agent': service_health['rag_agent'],
-                'learning_system': service_health['learning_system']
+                'enhanced_rag': service_health.get('enhanced_rag', {'status': 'unknown'}),
+                'learning_system': service_health.get('learning_system', {'status': 'unknown'}),
+                'unified_service': service_health.get('unified_service', {'status': 'unknown'})
             },
-            'message': 'DriveSmart API Health Check'
+            'message': 'DriveSmart API Health Check - Enhanced RAG Enabled'
         })
         
     except Exception as e:
@@ -87,35 +88,40 @@ def get_system_health():
         }
 
 def check_services():
-    """Check availability of internal services"""
+    """Check availability of enhanced services"""
     services = {
-        'rag_agent': {'status': 'unknown'},
+        'enhanced_rag': {'status': 'unknown'},
+        'unified_service': {'status': 'unknown'},
         'learning_system': {'status': 'unknown'}
     }
     
-    # Check RAG agent
+    # Check Enhanced RAG agent
     try:
-        from lightweight_rag import lightweight_rag
-        services['rag_agent'] = {
+        from service import get_system_status
+        status = get_system_status()
+        services['enhanced_rag'] = {
+            'status': 'available' if status['enhanced_rag_available'] else 'unavailable',
+            'type': 'enhanced_v2',
+            'grade': status['rag_grade'],
+            'performance_level': status['performance_level']
+        }
+        services['unified_service'] = {
             'status': 'available',
-            'type': 'lightweight'
+            'systems_loaded': status['systems_loaded']
         }
     except ImportError:
-        try:
-            from fast_rag_agent import FastRAGAgent
-            services['rag_agent'] = {
-                'status': 'available', 
-                'type': 'fast'
-            }
-        except ImportError:
-            services['rag_agent'] = {
-                'status': 'unavailable',
-                'error': 'No RAG agent found'
-            }
+        services['enhanced_rag'] = {
+            'status': 'unavailable',
+            'error': 'Enhanced RAG not found'
+        }
+        services['unified_service'] = {
+            'status': 'unavailable',
+            'error': 'Service not loaded'
+        }
     
     # Check learning system
     try:
-        from simple_learning_system import simple_learning_system
+        from simple_learning_system import SimpleLearningSystem
         services['learning_system'] = {
             'status': 'available',
             'type': 'simple'

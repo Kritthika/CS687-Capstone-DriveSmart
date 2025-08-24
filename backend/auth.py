@@ -1,5 +1,5 @@
 """
-Authentication Module
+# backend/auth.py
 ====================
 Handles user registration, login, and JWT token management
 """

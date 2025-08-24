@@ -6,7 +6,7 @@ const getBaseURL = () => {
   // For development - use the computer's actual network IP
   // This works reliably for iOS Simulator and physical devices
   if (__DEV__) {
-    return 'http://10.30.16.44:5001';
+    return 'http://192.168.0.22:5001';
   }
   
   // Production URL

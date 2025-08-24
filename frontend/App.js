@@ -11,6 +11,7 @@ import AuthScreen from './screens/AuthScreen';
 
 // Main screens
 import HomeScreen from './screens/HomeScreen';
+import StateSelectionScreen from './screens/StateSelectionScreen';
 
 // Quiz screens
 import QuizScreen from './screens/quizzes/QuizScreen';
@@ -109,6 +110,7 @@ export default function App() {
          <Stack.Screen name="Auth" component={AuthScreen} />
          <Stack.Screen name="Main" component={MainTabs} />
          <Stack.Screen name="PracticeTest" component={PracticeTestScreen} />
+         <Stack.Screen name="StateSelection" component={StateSelectionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -1,12 +1,30 @@
 """
-Quiz Module
-===========
-Handles quiz submission, results, and performance tracking
+Quiz Module - Enhanced RAG Integration
+=====================================
+Handles quiz submission, results, and performance tracking with Grade B RAG
 """
 
 from flask import Blueprint, request, jsonify
 from database import get_db
-from service import get_study_recommendations, track_user_progress, analyze_user_performance
+
+# Enhanced service imports
+try:
+    from service import get_study_recommendations, analyze_user_performance, track_user_progress
+    ENHANCED_SERVICE_AVAILABLE = True
+    print("✅ Enhanced service loaded for quiz")
+except ImportError:
+    ENHANCED_SERVICE_AVAILABLE = False
+    print("⚠️ Enhanced service not available for quiz")
+    
+    # Fallback functions
+    def get_study_recommendations(user_id):
+        return {'status': 'fallback', 'message': 'Enhanced service unavailable'}
+    
+    def analyze_user_performance(user_id):
+        return {'status': 'fallback', 'message': 'Enhanced analysis unavailable'}
+        
+    def track_user_progress(user_id):
+        return {'status': 'fallback', 'message': 'Enhanced tracking unavailable'}
 
 quiz_bp = Blueprint('quiz', __name__)
 
@@ -70,10 +88,10 @@ def get_quiz_results(user_id):
         offset = request.args.get('offset', 0, type=int)
         
         cursor.execute('''
-            SELECT id, state, score, total_questions, date_taken
+            SELECT id, state, score, total_questions, timestamp
             FROM quiz_results 
             WHERE user_id = ?
-            ORDER BY date_taken DESC
+            ORDER BY timestamp DESC
             LIMIT ? OFFSET ?
         ''', (user_id, limit, offset))
         
@@ -86,7 +104,7 @@ def get_quiz_results(user_id):
                 'score': row['score'],
                 'total_questions': row['total_questions'],
                 'percentage': percentage,
-                'date': row['date_taken'],
+                'date_taken': row['timestamp'],  # Map timestamp to date_taken for frontend
                 'passed': percentage >= 80
             })
         
@@ -193,3 +211,47 @@ def get_quiz_stats(user_id):
     except Exception as e:
         print(f"Error getting quiz stats: {e}")
         return jsonify({'error': 'Failed to get quiz statistics'}), 500
+
+# Enhanced RAG Endpoints
+@quiz_bp.route('/rag-analysis/<int:user_id>', methods=['GET'])
+def get_rag_performance_analysis(user_id):
+    """Get enhanced performance analysis"""
+    try:
+        if ENHANCED_SERVICE_AVAILABLE:
+            analysis = analyze_user_performance(user_id)
+            return jsonify(analysis)
+        else:
+            return jsonify({
+                'status': 'fallback',
+                'message': 'Enhanced analysis not available',
+                'performance_level': 'Fair'
+            })
+    except Exception as e:
+        print(f"Error in enhanced analysis: {e}")
+        return jsonify({'error': 'Failed to analyze performance'}), 500
+
+@quiz_bp.route('/rag-study-plan/<int:user_id>', methods=['GET'])  
+def get_rag_study_recommendations(user_id):
+    """Get enhanced personalized study plan"""
+    try:
+        if ENHANCED_SERVICE_AVAILABLE:
+            study_plan = get_study_recommendations(user_id)
+            return jsonify(study_plan)
+        else:
+            # Fallback recommendations
+            return jsonify({
+                'status': 'fallback',
+                'study_tips': [
+                    "📖 Read your state's official driving manual",
+                    "🚗 Take more practice tests to improve",
+                    "🛑 Focus on traffic signs and road rules",
+                    "⚖️ Learn right-of-way regulations",
+                    "🏫 Study school zone and pedestrian safety"
+                ],
+                'feedback_message': 'General study recommendations available.',
+                'study_time': '30 minutes daily',
+                'enhanced_rag': False
+            })
+    except Exception as e:
+        print(f"Error generating enhanced study plan: {e}")
+        return jsonify({'error': 'Failed to generate study plan'}), 500
