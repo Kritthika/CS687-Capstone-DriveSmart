@@ -1,3 +1,4 @@
+
 """
 Lightweight RAG Agent - Uses Real Document Content
 ================================================
@@ -6,12 +7,11 @@ RAG agent that searches through your actual state driving manuals
 instead of using hardcoded responses. Much more accurate!
 """
 
-import json
 import time
 import ollama
 import os
-from typing import Dict, Optional, List
-import re
+from typing import Dict, List
+from rapidfuzz import fuzz
 
 class LightweightRAGAgent:
     """
@@ -42,16 +42,16 @@ class LightweightRAGAgent:
                         # Break into searchable chunks
                         chunks = [chunk.strip() for chunk in content.split('\n') if len(chunk.strip()) > 50]
                         self.state_documents[state] = chunks
-                        print(f"✅ Loaded {state}: {len(chunks)} text chunks")
+                        print(f"Loaded {state}: {len(chunks)} text chunks")
                 else:
-                    print(f"⚠️ File not found: {filepath}")
+                    print(f"File not found: {filepath}")
             except Exception as e:
-                print(f"❌ Error loading {filepath}: {e}")
+                print(f" Error loading {filepath}: {e}")
         
         print(f"📚 Total documents loaded: {len(self.state_documents)}")
     
     def _search_documents(self, query: str, state: str) -> List[str]:
-        """Enhanced search for 85%+ precision"""
+        """Enhanced search with fuzzy matching for better coverage"""
         state_key = state.lower() if state else 'washington'
         
         if state_key not in self.state_documents:
@@ -61,41 +61,54 @@ class LightweightRAGAgent:
         query_lower = query.lower()
         query_words = set(query_lower.split())
         
-        # Enhanced scoring with multiple strategies
+        # Expanded exact phrases and traffic terms
+        exact_phrases = [
+            'speed limit', 'fire hydrant', 'school zone', 'right on red',
+            'learner permit', 'parking distance', 'mph', 'feet',
+            'school bus', 'passing bus', 'stop sign', 'yield', 'turn signal'
+        ]
+        
+        traffic_terms = [
+            'speed', 'limit', 'zone', 'park', 'distance', 'turn', 
+            'permit', 'license', 'bus', 'stop', 'children', 'passing', 
+            'lane', 'road', 'intersection'
+        ]
+        
         scored_chunks = []
         for chunk in chunks:
             chunk_lower = chunk.lower()
             score = 0
             
-            # 1. Exact phrase matching (highest priority)
-            exact_phrases = ['speed limit', 'fire hydrant', 'school zone', 'right on red', 
-                           'learner permit', 'parking distance', 'mph', 'feet']
+            # 1. Exact phrase matching
             for phrase in exact_phrases:
                 if phrase in query_lower and phrase in chunk_lower:
                     score += 20
             
-            # 2. Keyword density scoring
+            # 2. Keyword density
             word_matches = sum(1 for word in query_words if word in chunk_lower and len(word) > 2)
             score += word_matches * 3
             
-            # 3. Number relevance (for distances, speeds, ages)
+            # 3. Number relevance
             if any(c.isdigit() for c in query) and any(c.isdigit() for c in chunk):
                 score += 5
             
             # 4. Traffic-specific terms boost
-            traffic_terms = ['speed', 'limit', 'zone', 'park', 'distance', 'turn', 'permit', 'license']
             for term in traffic_terms:
                 if term in query_lower and term in chunk_lower:
                     score += 2
             
+            # 5. Fuzzy matching for typos / variations
+            fuzz_ratio = fuzz.partial_ratio(query_lower, chunk_lower)
+            if fuzz_ratio > 70:  # threshold can be adjusted
+                score += 10
+            
             if score > 0:
                 scored_chunks.append((chunk, score))
         
-        # Return top 3 highest scoring chunks for precision
+        # Return top 5 chunks for better coverage
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
-        top_chunks = [chunk for chunk, score in scored_chunks[:3] if score >= 5]
+        top_chunks = [chunk for chunk, score in scored_chunks[:5] if score >= 5]
         
-        # Calculate precision metrics
         precision = len(top_chunks) / max(len(scored_chunks), 1) if scored_chunks else 0
         print(f"🎯 Search precision: {precision:.3f} ({len(top_chunks)}/{len(scored_chunks)})")
         
@@ -172,26 +185,21 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
                 options={'num_predict': 400, 'temperature': 0.05, 'top_p': 0.9}
             )
             
-            # Ensure response has complete sentences and proper length
             response_text = response['response'].strip()
             
-            # Split into sentences to ensure completeness
             sentences = []
             current_sentence = ""
             
             for char in response_text:
                 current_sentence += char
                 if char in '.!?':
-                    # Check if this looks like end of sentence (not abbreviation)
                     if len(current_sentence.strip()) > 15:
                         sentences.append(current_sentence.strip())
                         current_sentence = ""
             
-            # Add any remaining content as a sentence
             if current_sentence.strip():
                 sentences.append(current_sentence.strip())
             
-            # Build response with complete sentences targeting 150-200 words
             final_response = ""
             word_count = 0
             
@@ -200,8 +208,7 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
                 if word_count + sentence_words <= 200:
                     final_response += sentence + " "
                     word_count += sentence_words
-                elif word_count < 150:  # Need more content to reach minimum
-                    # Add partial sentence if needed to reach minimum
+                elif word_count < 150:
                     remaining_words_needed = 150 - word_count
                     sentence_words_list = sentence.split()
                     if len(sentence_words_list) > remaining_words_needed:
@@ -222,29 +229,23 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
         if not contexts:
             return "No information found in the traffic manual sections regarding this specific question."
         
-        # Find most relevant content across contexts
         relevant_sentences = []
         query_words = set(word.lower() for word in query.split() if len(word) > 3)
         
         for context in contexts[:3]:
-            # Split into complete sentences
             sentences = [s.strip() for s in context.replace('!', '.').replace('?', '.').split('.') if len(s.strip()) > 20]
             
             for sentence in sentences:
                 sentence_words = set(word.lower() for word in sentence.split())
-                # Check relevance by word overlap
                 overlap = len(query_words.intersection(sentence_words))
                 if overlap > 0:
                     relevant_sentences.append((sentence, overlap))
         
-        # Sort by relevance and take best sentences
         relevant_sentences.sort(key=lambda x: x[1], reverse=True)
         
-        # Build complete answer with 150-200 words
         answer_parts = []
         total_words = 0
         
-        # Add introduction based on query topic
         if 'speed limit' in query.lower():
             intro = "According to the Washington State traffic manual, speed limits are established to ensure safe driving conditions."
         elif 'park' in query.lower() or 'parking' in query.lower():
@@ -257,7 +258,6 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
         answer_parts.append(intro)
         total_words += len(intro.split())
         
-        # Add relevant sentences until we reach 150-200 words
         for sentence, _ in relevant_sentences:
             sentence_clean = sentence.strip()
             if not sentence_clean.endswith('.'):
@@ -268,12 +268,10 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
                 answer_parts.append(sentence_clean)
                 total_words += sentence_words
             elif total_words < 150:
-                # Add partial content to reach minimum
                 remaining_needed = 150 - total_words
                 words_list = sentence_clean.split()
                 if len(words_list) > remaining_needed:
                     partial = " ".join(words_list[:remaining_needed])
-                    # Find a good breaking point
                     if ',' in partial[-20:]:
                         partial = partial[:partial.rfind(',')]
                     answer_parts.append(partial + ".")
@@ -283,7 +281,6 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
             else:
                 break
         
-        # Add conclusion if we have space
         if total_words < 180:
             conclusion = " Always consult the complete traffic manual and current local regulations for comprehensive information."
             if total_words + len(conclusion.split()) <= 200:
@@ -292,9 +289,9 @@ COMPLETE DETAILED ANSWER (150-200 words):"""
         return " ".join(answer_parts)
 
 
-# Enhanced test for 85%+ performance
+# Test function
 def test_rag():
-    print("🧪 TESTING ENHANCED RAG - TARGET: 85%+ PRECISION")
+    print("🧪 TESTING ENHANCED RAG ")
     print("=" * 55)
     
     rag = LightweightRAGAgent()
@@ -303,7 +300,8 @@ def test_rag():
         "What is the speed limit in school zones?",
         "How far must I park from a fire hydrant?", 
         "Can I turn right on red in Washington?",
-        "What is the minimum age for a learner's permit?"
+        "What is the minimum age for a learner's permit?",
+        "How to overtake a school bus?" 
     ]
     
     total_time = 0
@@ -322,8 +320,14 @@ def test_rag():
     print("\n🏆 PERFORMANCE TARGET:")
     print(f"   Average Response Time: {total_time/len(tests):.1f}s")
     print(f"   Target: 85%+ Context Precision for optimal performance")
-    print(f"   Status: Enhanced search with exact phrase matching")
+    print(f"   Status: Enhanced search with fuzzy matching")
+
 
 
 if __name__ == "__main__":
+    print("🎯 DriveSmart RAG Testing")
+    print("Running Standard Performance Test")
+    print()
+    
+    # Run the standard RAG test
     test_rag()
