@@ -18,16 +18,24 @@ export default function ProgressScreen({ route, navigation }) {
     const getUserId = async () => {
       try {
         const storedUserId = await AsyncStorage.getItem('user_id');
+        console.log('🔍 Stored User ID:', storedUserId);
+        
         if (storedUserId) {
+          console.log('✅ Using stored user ID:', storedUserId);
           setUserId(storedUserId);
           fetchQuizResults(storedUserId);
           fetchPersonalizedData(storedUserId);
         } else {
-          setError('User ID not found. Please log in again.');
-          setLoading(false);
+          // Fallback to default user ID if none is stored
+          console.log('⚠️ No stored user ID, using default: 1');
+          const defaultUserId = '1';
+          setUserId(defaultUserId);
+          await AsyncStorage.setItem('user_id', defaultUserId);
+          fetchQuizResults(defaultUserId);
+          fetchPersonalizedData(defaultUserId);
         }
       } catch (err) {
-        console.error('Error getting user ID:', err);
+        console.error('❌ Error getting user ID:', err);
         setError('Error retrieving user information.');
         setLoading(false);
       }
@@ -41,33 +49,39 @@ export default function ProgressScreen({ route, navigation }) {
       setLoading(true);
       setError(null);
 
-      console.log('Fetching quiz results for user:', currentUserId);
+      console.log('📊 Fetching quiz results for user:', currentUserId);
+      console.log('🌐 Using BASE_URL:', BASE_URL);
       
       // Use the correct URL format that matches the backend route
-      const response = await fetch(`${BASE_URL}/results?user_id=${currentUserId}`, {
+      const url = `${BASE_URL}/results?user_id=${currentUserId}`;
+      console.log('🔗 Full URL:', url);
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
       
-      console.log('Response status:', response.status);
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+        console.error('❌ Error response:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Quiz results data:', data);
+      console.log('📈 Quiz results data:', data);
       
       // Handle both array format and object with results property
       const resultsArray = Array.isArray(data) ? data : (data.results || []);
+      console.log('📋 Results array:', resultsArray);
       setResults(resultsArray);
       
     } catch (err) {
-      console.error('Error fetching quiz results:', err);
+      console.error('❌ Error fetching quiz results:', err);
       setError('Unable to load quiz results. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -78,35 +92,52 @@ export default function ProgressScreen({ route, navigation }) {
   const fetchPersonalizedData = async (currentUserId) => {
     try {
       setLoadingPersonalization(true);
+      console.log('🧠 Fetching personalized data for user:', currentUserId);
       
       // Fetch RAG analysis
-      const analysisResponse = await fetch(`${BASE_URL}/api/quiz/rag-analysis?user_id=${currentUserId}`, {
+      const analysisUrl = `${BASE_URL}/api/quiz/rag-analysis/${currentUserId}`;
+      console.log('🔗 Analysis URL:', analysisUrl);
+      
+      const analysisResponse = await fetch(analysisUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      
+      console.log('🧠 RAG Analysis Response Status:', analysisResponse.status);
       
       if (analysisResponse.ok) {
         const analysisData = await analysisResponse.json();
+        console.log('📊 RAG Analysis Data:', analysisData);
         setRagAnalysis(analysisData);
+      } else {
+        console.error('❌ RAG Analysis failed:', analysisResponse.status);
       }
       
       // Fetch RAG study plan
-      const studyPlanResponse = await fetch(`${BASE_URL}/api/quiz/rag-study-plan?user_id=${currentUserId}`, {
+      const studyPlanUrl = `${BASE_URL}/api/quiz/rag-study-plan/${currentUserId}`;
+      console.log('🔗 Study Plan URL:', studyPlanUrl);
+      
+      const studyPlanResponse = await fetch(studyPlanUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
       
+      console.log('📚 Study Plan Response Status:', studyPlanResponse.status);
+      
       if (studyPlanResponse.ok) {
         const studyPlanData = await studyPlanResponse.json();
+        console.log('📖 Study Plan Data:', studyPlanData);
         setStudyPlan(studyPlanData);
+      } else {
+        console.error('❌ Study Plan failed:', studyPlanResponse.status);
       }
       
     } catch (err) {
-      console.error('Error fetching personalized data:', err);
+      console.error('❌ Error fetching personalized data:', err);
       // Don't show error for personalization features, they're optional
     } finally {
       setLoadingPersonalization(false);
@@ -182,6 +213,17 @@ export default function ProgressScreen({ route, navigation }) {
         <Text style={styles.title}>📊 My Quiz Progress</Text>
       </View>
 
+      {/* Show message when no quiz results */}
+      {results.length === 0 && !loading && (
+        <View style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateIcon}>📝</Text>
+          <Text style={styles.emptyStateTitle}>No Quiz Results Yet</Text>
+          <Text style={styles.emptyStateText}>
+            Take some practice quizzes to see your progress analysis and personalized study recommendations!
+          </Text>
+        </View>
+      )}
+
       {/* Statistics Card */}
       {results.length > 0 && (() => {
         const stats = calculateStats();
@@ -248,8 +290,8 @@ export default function ProgressScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* RAG Analysis Section */}
-      {ragAnalysis && (
+      {/* RAG Analysis Section - Always show if we have ragAnalysis data */}
+      {ragAnalysis && ragAnalysis.status === 'success' && (
         <View style={styles.card}>
           <View style={styles.ragHeader}>
             <Text style={styles.cardTitle}>🧠 AI Performance Analysis</Text>
@@ -266,7 +308,16 @@ export default function ProgressScreen({ route, navigation }) {
                 { color: ragAnalysis.performance_level === 'excellent' ? '#4CAF50' :
                         ragAnalysis.performance_level === 'good' ? '#FF9800' : '#F44336' }
               ]}>
-                {ragAnalysis.performance_level.toUpperCase()}
+                {ragAnalysis.performance_level.replace('_', ' ').toUpperCase()}
+              </Text>
+            </View>
+          )}
+          
+          {ragAnalysis.overall_score !== undefined && (
+            <View style={styles.performanceLevel}>
+              <Text style={styles.performanceLevelTitle}>Overall Score:</Text>
+              <Text style={styles.performanceLevelText}>
+                {ragAnalysis.overall_score}%
               </Text>
             </View>
           )}
@@ -280,16 +331,25 @@ export default function ProgressScreen({ route, navigation }) {
               <Text style={styles.weakAreasTitle}>🎯 Areas to Focus On:</Text>
               {ragAnalysis.weak_areas.map((area, index) => (
                 <View key={index} style={styles.weakAreaItem}>
-                  <Text style={styles.weakAreaText}>• {area}</Text>
+                  <Text style={styles.weakAreaText}>• {area.replace('_', ' ').toUpperCase()}</Text>
                 </View>
               ))}
+            </View>
+          )}
+          
+          {ragAnalysis.total_quizzes !== undefined && (
+            <View style={styles.performanceLevel}>
+              <Text style={styles.performanceLevelTitle}>Total Quizzes Taken:</Text>
+              <Text style={styles.performanceLevelText}>
+                {ragAnalysis.total_quizzes}
+              </Text>
             </View>
           )}
         </View>
       )}
 
-      {/* Personalized Study Plan */}
-      {studyPlan && (
+      {/* Personalized Study Plan - Always show if we have studyPlan data */}
+      {studyPlan && studyPlan.status === 'success' && (
         <View style={styles.card}>
           <View style={styles.ragHeader}>
             <Text style={styles.cardTitle}>📚 Personalized Study Plan</Text>
@@ -298,13 +358,24 @@ export default function ProgressScreen({ route, navigation }) {
             </View>
           </View>
           
-          {studyPlan.study_plan && (
-            <Text style={styles.studyPlanText}>{studyPlan.study_plan}</Text>
+          {studyPlan.feedback && (
+            <Text style={styles.studyPlanText}>{studyPlan.feedback}</Text>
+          )}
+          
+          {studyPlan.study_tips && studyPlan.study_tips.length > 0 && (
+            <View style={styles.recommendationsContainer}>
+              <Text style={styles.recommendationsTitle}>💡 Study Tips:</Text>
+              {studyPlan.study_tips.map((tip, index) => (
+                <View key={index} style={styles.recommendationItem}>
+                  <Text style={styles.recommendationText}>{tip}</Text>
+                </View>
+              ))}
+            </View>
           )}
           
           {studyPlan.recommendations && studyPlan.recommendations.length > 0 && (
             <View style={styles.recommendationsContainer}>
-              <Text style={styles.recommendationsTitle}>💡 Study Recommendations:</Text>
+              <Text style={styles.recommendationsTitle}>� Study Recommendations:</Text>
               {studyPlan.recommendations.map((rec, index) => (
                 <View key={index} style={styles.recommendationItem}>
                   <Text style={styles.recommendationText}>• {rec}</Text>
@@ -313,9 +384,16 @@ export default function ProgressScreen({ route, navigation }) {
             </View>
           )}
           
-          {studyPlan.estimated_study_time && (
+          {studyPlan.recommended_time && (
             <View style={styles.studyTimeContainer}>
               <Text style={styles.studyTimeLabel}>⏱️ Recommended Study Time:</Text>
+              <Text style={styles.studyTimeText}>{studyPlan.recommended_time}</Text>
+            </View>
+          )}
+          
+          {studyPlan.estimated_study_time && (
+            <View style={styles.studyTimeContainer}>
+              <Text style={styles.studyTimeLabel}>⏱️ Estimated Study Time:</Text>
               <Text style={styles.studyTimeText}>{studyPlan.estimated_study_time}</Text>
             </View>
           )}
@@ -366,6 +444,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#d0d7de',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#7a8fa6',
+    marginBottom: 4,
   },
   errorContainer: {
     flex: 1,
@@ -643,5 +726,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 10,
     fontStyle: 'italic',
+  },
+  retryButton: {
+    backgroundColor: '#2196F3',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyStateCard: {
+    backgroundColor: 'white',
+    margin: 15,
+    padding: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 15,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

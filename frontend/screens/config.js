@@ -3,8 +3,8 @@
 import { Platform } from 'react-native';
 
 const getBaseURL = () => {
-  // For development - use the computer's actual network IP
-  // This works reliably for iOS Simulator and physical devices
+  // For development - use localhost for web testing
+  // Change to your computer's IP for mobile device testing
   if (__DEV__) {
     return 'http://192.168.0.22:5001';
   }

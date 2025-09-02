@@ -51,34 +51,34 @@ class SimpleLearningSystem:
         # Quick study tips for each area
         self.study_tips = {
             'traffic_signs': [
-                "🚦 Review common traffic signs: Stop, Yield, No Entry, Speed Limit",
-                "📚 Practice identifying regulatory vs warning signs",
-                "🎯 Focus on shape meanings: Octagon=Stop, Triangle=Yield, Circle=Railroad"
+                "Review common traffic signs: Stop, Yield, No Entry, Speed Limit",
+                "Practice identifying regulatory vs warning signs",
+                "Focus on shape meanings: Octagon=Stop, Triangle=Yield, Circle=Railroad"
             ],
             'right_of_way': [
-                "👥 Remember: Pedestrians always have right of way",
-                "🔄 At 4-way stops: First to arrive, first to go",
-                "⬅️ When turning left, yield to oncoming traffic"
+                "Remember: Pedestrians always have right of way",
+                "At 4-way stops: First to arrive, first to go",
+                "When turning left, yield to oncoming traffic"
             ],
             'parking': [
-                "🚫 Never park within 15 feet of fire hydrants",
-                "📏 Keep 30 feet from stop signs and traffic lights",
-                "🚗 Always park in the direction of traffic flow"
+                "Never park within 15 feet of fire hydrants",
+                "Keep 30 feet from stop signs and traffic lights",
+                "Always park in the direction of traffic flow"
             ],
             'speed_limits': [
-                "🏘️ Residential areas: Usually 25 mph unless posted",
-                "🏫 School zones: 20 mph when children present",
-                "🛣️ Highways: Follow posted limits, adjust for conditions"
+                "Residential areas: Usually 25 mph unless posted",
+                "School zones: 20 mph when children present",
+                "Highways: Follow posted limits, adjust for conditions"
             ],
             'lane_changes': [
-                "👀 Always check mirrors and blind spots",
-                "📶 Signal at least 100 feet before changing lanes",
-                "🚗 Maintain safe following distance (3-second rule)"
+                "Always check mirrors and blind spots",
+                "Signal at least 100 feet before changing lanes",
+                "Maintain safe following distance (3-second rule)"
             ],
             'emergency': [
-                "🚑 Pull over safely for emergency vehicles",
-                "📱 Never follow emergency vehicles closely",
-                "⚠️ Use hazard lights when stopped on roadside"
+                " Pull over safely for emergency vehicles",
+                " Never follow emergency vehicles closely",
+                "Use hazard lights when stopped on roadside"
             ]
         }
 
