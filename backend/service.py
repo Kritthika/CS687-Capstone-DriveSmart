@@ -127,8 +127,15 @@ def get_study_recommendations(user_id: int) -> dict:
             # Analyze quiz performance
             analysis = simple_learning_system.analyze_quiz_performance(user_id)
             
+            # Get preferred state from analysis
+            preferred_state = analysis.get('preferred_state', 'washington')
+            
             # Get personalized feedback with RAG enhancement
-            feedback = simple_learning_system.get_personalized_feedback(analysis, use_rag=True)
+            feedback = simple_learning_system.get_personalized_feedback(
+                analysis, 
+                use_rag=True, 
+                state=preferred_state
+            )
             
             return {
                 'status': 'success',
@@ -145,6 +152,7 @@ def get_study_recommendations(user_id: int) -> dict:
                 'study_priority': feedback.get('priority', 'medium'),
                 'recommended_time': feedback.get('estimated_study_time', '20-30 minutes daily'),
                 'enhanced_rag': True,
+                'state': preferred_state,
                 'generated_at': feedback.get('generated_at')
             }
             

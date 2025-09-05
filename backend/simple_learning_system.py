@@ -6,10 +6,9 @@ Focus: Quiz Score Analysis → Weak Areas → Personalized Feedback + RAG → Fa
 Core student learning flow with minimal complexity and maximum reliability.
 """
 
-import sqlite3
-import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
+from database import get_db
 
 class SimpleLearningSystem:
     """
@@ -84,50 +83,65 @@ class SimpleLearningSystem:
 
     def analyze_quiz_performance(self, user_id: int) -> Dict:
         """
-        Step 1: Analyze quiz scores to identify weak areas
+        Step 1: Analyze user's quiz performance to identify weak areas
         """
         try:
-            db = sqlite3.connect(self.database_path)
-            db.row_factory = sqlite3.Row
+            db = get_db()
             cursor = db.cursor()
             
-            # Get recent quiz results
-            cursor.execute('''
-                SELECT score, total_questions, state, date_taken
+            # Get user's quiz results with state information
+            cursor.execute("""
+                SELECT score, total_questions, state, date_taken 
                 FROM quiz_results 
-                WHERE user_id = ?
+                WHERE user_id = ? 
                 ORDER BY date_taken DESC
-                LIMIT 10
-            ''', (user_id,))
+            """, (user_id,))
             
-            results = cursor.fetchall()
-            db.close()
+            quiz_results = cursor.fetchall()
             
-            if not results:
-                return self._default_study_plan()
+            if not quiz_results:
+                return {
+                    'user_id': user_id,
+                    'total_quizzes': 0,
+                    'overall_score': 0,
+                    'performance_level': 'new_user',
+                    'strong_areas': [],
+                    'weak_areas': ['traffic_signs', 'right_of_way'],  # Default weak areas for new users
+                    'preferred_state': 'washington',  # Default to Washington since user prefers it
+                    'analysis_date': datetime.now().isoformat()
+                }
             
-            # Calculate performance metrics
-            total_score = sum(r['score'] for r in results)
-            total_possible = sum(r['total_questions'] for r in results)
-            overall_percentage = int((total_score / total_possible) * 100) if total_possible > 0 else 0
+            # Calculate overall performance metrics
+            total_quizzes = len(quiz_results)
+            scores = [result[0] for result in quiz_results]
+            overall_score = sum(scores) // len(scores) if scores else 0
             
-            # Identify performance level
-            if overall_percentage >= self.passing_score:
-                performance_level = "strong"
-            elif overall_percentage >= 60:
-                performance_level = "moderate"
+            # Get user's preferred state (most recent quiz state or most frequent)
+            latest_state = quiz_results[0][2] if quiz_results[0][2] else 'washington'
+            preferred_state = latest_state.lower() if latest_state.lower() in ['washington', 'california'] else 'washington'
+            
+            # Determine performance level
+            if overall_score >= 85:
+                performance_level = 'excellent'
+            elif overall_score >= 75:
+                performance_level = 'good'
+            elif overall_score >= 60:
+                performance_level = 'needs_improvement'
             else:
-                performance_level = "needs_improvement"
+                performance_level = 'poor'
             
-            # Simulate weak area identification (in real app, this would be based on question categories)
-            weak_areas = self._identify_weak_areas(overall_percentage)
+            # Identify weak and strong areas based on performance
+            weak_areas = self._identify_weak_areas(overall_score)
+            strong_areas = self._identify_strong_areas(overall_score)
             
             return {
                 'user_id': user_id,
-                'overall_score': overall_percentage,
+                'total_quizzes': total_quizzes,
+                'overall_score': overall_score,
                 'performance_level': performance_level,
-                'total_quizzes': len(results),
+                'strong_areas': strong_areas,
                 'weak_areas': weak_areas,
+                'preferred_state': preferred_state,
                 'analysis_date': datetime.now().isoformat()
             }
             
@@ -135,7 +149,7 @@ class SimpleLearningSystem:
             print(f"Error analyzing quiz performance: {e}")
             return self._default_study_plan()
 
-    def get_personalized_feedback(self, analysis: Dict, use_rag: bool = True) -> Dict:
+    def get_personalized_feedback(self, analysis: Dict, use_rag: bool = True, state: str = 'washington') -> Dict:
         """
         Step 2: Generate personalized feedback based on analysis
         """
@@ -158,12 +172,25 @@ class SimpleLearningSystem:
             rag_tips = []
             if use_rag:
                 try:
-                    from lightweight_rag import lightweight_rag
-                    rag_query = f"Study tips for {', '.join(weak_areas)} in driving test"
-                    rag_response = lightweight_rag.chat_with_rag_fast(rag_query, "Washington")
+                    from lightweight_rag import LightweightRAGAgent
+                    rag_agent = LightweightRAGAgent()
+                    
+                    # Generate state-specific query for weak areas
+                    rag_query = f"Study tips and specific rules for {', '.join(weak_areas)} in {state.title()} state driving test preparation"
+                    rag_response = rag_agent.chat_with_rag_fast(rag_query, state.lower())
+                    
                     if rag_response.get('rag_enhanced'):
-                        rag_tips.append(f"🤖 AI Insight: {rag_response['response']}")
-                except Exception:
+                        rag_tips.append(f"🎯 {state.title()} Specific: {rag_response['response']}")
+                        
+                    # Additional personalized query based on score
+                    if overall_score < 70:
+                        improvement_query = f"How to improve from {overall_score}% to pass the {state.title()} driving test"
+                        improvement_response = rag_agent.chat_with_rag_fast(improvement_query, state.lower())
+                        if improvement_response.get('rag_enhanced'):
+                            rag_tips.append(f"📈 Improvement Guide: {improvement_response['response']}")
+                            
+                except Exception as e:
+                    print(f"RAG enhancement failed: {e}")
                     pass  # Fallback gracefully
             
             return {
@@ -193,6 +220,19 @@ class SimpleLearningSystem:
             return ['traffic_signs', 'speed_limits', 'right_of_way']
         else:
             return ['traffic_signs', 'right_of_way', 'parking', 'speed_limits']
+
+    def _identify_strong_areas(self, overall_score: int) -> List[str]:
+        """
+        Identify strong areas based on score
+        """
+        if overall_score >= 85:
+            return ['traffic_signs', 'speed_limits', 'parking', 'right_of_way']
+        elif overall_score >= 70:
+            return ['traffic_signs', 'speed_limits'] 
+        elif overall_score >= 50:
+            return ['emergency']
+        else:
+            return []  # New users don't have established strong areas yet
 
     def _generate_main_feedback(self, performance_level: str, score: int) -> str:
         """

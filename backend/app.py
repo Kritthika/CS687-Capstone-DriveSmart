@@ -1,27 +1,29 @@
 
 """
-DriveSmart API - Enhanced RAG Integration (Grade B)
-==================================================
-Unified Flask application with Grade B Enhanced RAG system
+DriveSmart API - Main Flask Application
+======================================
+Unified Flask application with Enhanced RAG system for driving education
 """
 
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 
-# Import enhanced modular components
+# Import modular components
 from database import init_db, close_db
 from auth import auth_bp
 from quiz import quiz_bp  
-from chat import chat_bp  # Enhanced chat with Grade B RAG
+from chat import chat_bp  # Enhanced chat with RAG
 from utils import utils_bp
 
 def create_app():
-    """Application factory"""
+    """Create and configure Flask application"""
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     CORS(app)
     app.teardown_appcontext(close_db)
+    
+    # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')

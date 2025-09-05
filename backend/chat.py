@@ -39,8 +39,8 @@ def chat():
                 future = executor.submit(rag_agent.chat_with_rag_fast, message, state)
 
                 try:
-                    # Shorter timeout for faster response
-                    result = future.result(timeout=20.0)
+                    # Increased timeout for RAG processing
+                    result = future.result(timeout=60.0)  # Increased from 20 seconds
                     elapsed = time.time() - start_time
                     return jsonify({
                         'response': result['response'],

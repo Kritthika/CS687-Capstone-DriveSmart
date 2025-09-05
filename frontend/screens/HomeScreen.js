@@ -7,7 +7,7 @@ export default function HomeScreen({ navigation }) {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
         <Text style={styles.heading}>
-          🏁 Welcome to <Text style={styles.brand}>DriveSmart</Text>
+          Welcome to <Text style={styles.brand}>DriveSmart</Text>
         </Text>
         <Text style={styles.subtitle}>
           Your personal companion to master road rules and pass your license exam.

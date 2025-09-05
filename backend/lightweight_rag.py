@@ -156,73 +156,44 @@ class LightweightRAGAgent:
             }
     
     def _generate_response(self, query: str, contexts: List[str], state: str) -> str:
-        """Generate comprehensive 150-word response"""
-        context_text = "\n\n---SECTION---\n\n".join(contexts[:3])
+        """Generate optimized response with faster Ollama settings"""
+        context_text = "\n\n---SECTION---\n\n".join(contexts[:2])  # Use only top 2 contexts
         
-        prompt = f"""You are a traffic law expert. Provide a comprehensive, well-structured answer using the official manual sections below.
+        prompt = f"""Answer this driving question using the official manual text below.
 
-QUESTION: {query}
+Question: {query}
 
-OFFICIAL MANUAL SECTIONS:
+Official Text:
 {context_text}
 
-INSTRUCTIONS:
-- Provide a complete, detailed explanation of 150-200 words
-- Write in complete, meaningful sentences that flow naturally
-- Include specific numbers, distances, requirements, and penalties from the text
-- Explain the reasoning behind rules and safety considerations
-- Add practical examples and important exceptions when relevant
-- If specific information isn't in sections, state this but provide related available information
-- End with complete sentences - no cut-offs or incomplete thoughts
-- Structure: Main answer + specific details + practical implications
-
-COMPLETE DETAILED ANSWER (150-200 words):"""
+Give a clear, practical answer in 100-150 words. Include specific details from the text."""
 
         try:
+            # Optimized Ollama settings for speed
             response = ollama.generate(
                 model='mistral:latest',
                 prompt=prompt,
-                options={'num_predict': 400, 'temperature': 0.05, 'top_p': 0.9}
+                options={
+                    'num_predict': 200,  # Reduced from 400
+                    'temperature': 0.1,  # Reduced for consistency
+                    'top_p': 0.9,
+                    'num_ctx': 2048,     # Reduced context window
+                    'num_thread': 8      # Use more threads for speed
+                }
             )
             
             response_text = response['response'].strip()
             
-            sentences = []
-            current_sentence = ""
+            # Simple truncation to ~150 words
+            words = response_text.split()
+            if len(words) > 150:
+                response_text = ' '.join(words[:150]) + '...'
             
-            for char in response_text:
-                current_sentence += char
-                if char in '.!?':
-                    if len(current_sentence.strip()) > 15:
-                        sentences.append(current_sentence.strip())
-                        current_sentence = ""
+            return response_text
             
-            if current_sentence.strip():
-                sentences.append(current_sentence.strip())
-            
-            final_response = ""
-            word_count = 0
-            
-            for sentence in sentences:
-                sentence_words = len(sentence.split())
-                if word_count + sentence_words <= 200:
-                    final_response += sentence + " "
-                    word_count += sentence_words
-                elif word_count < 150:
-                    remaining_words_needed = 150 - word_count
-                    sentence_words_list = sentence.split()
-                    if len(sentence_words_list) > remaining_words_needed:
-                        partial = " ".join(sentence_words_list[:remaining_words_needed])
-                        final_response += partial + "..."
-                    else:
-                        final_response += sentence + " "
-                    break
-                else:
-                    break
-            
-            return final_response.strip()
         except Exception as e:
-            return self._extract_detailed_answer(query, contexts)
+            print(f"Ollama generation error: {e}")
+            return f"Based on {state or 'Washington'} driving laws: {contexts[0][:200]}..." if contexts else "I couldn't find specific information about that."
     
     def _extract_detailed_answer(self, query: str, contexts: List[str]) -> str:
         """Extract comprehensive answer from context when Ollama fails - ensure complete sentences"""

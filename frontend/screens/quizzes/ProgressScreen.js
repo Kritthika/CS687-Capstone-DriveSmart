@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { BASE_URL } from '../config';
+import Svg, { Circle } from 'react-native-svg';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProgressScreen({ route, navigation }) {
   const [results, setResults] = useState([]);
@@ -10,421 +12,293 @@ export default function ProgressScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [studyPlan, setStudyPlan] = useState(null);
-  const [ragAnalysis, setRagAnalysis] = useState(null);
-  const [loadingPersonalization, setLoadingPersonalization] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Get userId from AsyncStorage
   useEffect(() => {
-    const getUserId = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem('user_id');
-        console.log('🔍 Stored User ID:', storedUserId);
-        
-        if (storedUserId) {
-          console.log('✅ Using stored user ID:', storedUserId);
-          setUserId(storedUserId);
-          fetchQuizResults(storedUserId);
-          fetchPersonalizedData(storedUserId);
-        } else {
-          // Fallback to default user ID if none is stored
-          console.log('⚠️ No stored user ID, using default: 1');
-          const defaultUserId = '1';
-          setUserId(defaultUserId);
-          await AsyncStorage.setItem('user_id', defaultUserId);
-          fetchQuizResults(defaultUserId);
-          fetchPersonalizedData(defaultUserId);
-        }
-      } catch (err) {
-        console.error('❌ Error getting user ID:', err);
-        setError('Error retrieving user information.');
-        setLoading(false);
-      }
-    };
-    
-    getUserId();
+    initializeData();
   }, []);
 
-  const fetchQuizResults = async (currentUserId) => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('Progress Screen focused - refreshing data');
+      initializeData();
+    }, [])
+  );
 
-      console.log('📊 Fetching quiz results for user:', currentUserId);
-      console.log('🌐 Using BASE_URL:', BASE_URL);
-      
-      // Use the correct URL format that matches the backend route
-      const url = `${BASE_URL}/results?user_id=${currentUserId}`;
-      console.log('🔗 Full URL:', url);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('📈 Quiz results data:', data);
-      
-      // Handle both array format and object with results property
-      const resultsArray = Array.isArray(data) ? data : (data.results || []);
-      console.log('📋 Results array:', resultsArray);
-      setResults(resultsArray);
-      
+  const initializeData = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem('user_id') || '1';
+      setUserId(storedUserId);
+      await Promise.all([
+        fetchQuizResults(storedUserId),
+        fetchStudyPlan(storedUserId)
+      ]);
     } catch (err) {
-      console.error('❌ Error fetching quiz results:', err);
-      setError('Unable to load quiz results. Please check your connection and try again.');
+      console.error('Error initializing data:', err);
+      setError('Error loading data.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch personalized study recommendations using RAG
-  const fetchPersonalizedData = async (currentUserId) => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await initializeData();
+    setRefreshing(false);
+  };
+
+  const fetchQuizResults = async (currentUserId) => {
     try {
-      setLoadingPersonalization(true);
-      console.log('🧠 Fetching personalized data for user:', currentUserId);
-      
-      // Fetch RAG analysis
-      const analysisUrl = `${BASE_URL}/api/quiz/rag-analysis/${currentUserId}`;
-      console.log('🔗 Analysis URL:', analysisUrl);
-      
-      const analysisResponse = await fetch(analysisUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('🧠 RAG Analysis Response Status:', analysisResponse.status);
-      
-      if (analysisResponse.ok) {
-        const analysisData = await analysisResponse.json();
-        console.log('📊 RAG Analysis Data:', analysisData);
-        setRagAnalysis(analysisData);
-      } else {
-        console.error('❌ RAG Analysis failed:', analysisResponse.status);
+      const response = await fetch(`${BASE_URL}/results?user_id=${currentUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const resultsArray = Array.isArray(data) ? data : (data.results || []);
+        setResults(resultsArray);
       }
-      
-      // Fetch RAG study plan
-      const studyPlanUrl = `${BASE_URL}/api/quiz/rag-study-plan/${currentUserId}`;
-      console.log('🔗 Study Plan URL:', studyPlanUrl);
-      
-      const studyPlanResponse = await fetch(studyPlanUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('📚 Study Plan Response Status:', studyPlanResponse.status);
-      
-      if (studyPlanResponse.ok) {
-        const studyPlanData = await studyPlanResponse.json();
-        console.log('📖 Study Plan Data:', studyPlanData);
-        setStudyPlan(studyPlanData);
-      } else {
-        console.error('❌ Study Plan failed:', studyPlanResponse.status);
-      }
-      
     } catch (err) {
-      console.error('❌ Error fetching personalized data:', err);
-      // Don't show error for personalization features, they're optional
-    } finally {
-      setLoadingPersonalization(false);
+      console.error('Error fetching quiz results:', err);
     }
   };
 
-  // Calculate quiz statistics
+  const fetchStudyPlan = async (currentUserId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/quiz/rag-study-plan/${currentUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Study Plan Data:', data);
+        setStudyPlan(data);
+      }
+    } catch (err) {
+      console.error('Error fetching study plan:', err);
+    }
+  };
+
   const calculateStats = () => {
     if (results.length === 0) return null;
     
-    const scores = results.map(result => result.score || 0);
+    const scores = results.map(r => r.score || 0);
     const totalQuizzes = results.length;
     const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / totalQuizzes);
     const bestScore = Math.max(...scores);
     const latestScore = scores[scores.length - 1] || 0;
     
-    return {
-      totalQuizzes,
-      averageScore,
-      bestScore,
-      latestScore
-    };
+    console.log('Calculated Stats:', { totalQuizzes, averageScore, bestScore, latestScore, allScores: scores });
+    
+    return { totalQuizzes, averageScore, bestScore, latestScore };
   };
 
-  const retryFetch = () => {
-    if (userId) {
-      fetchQuizResults(userId);
-      fetchPersonalizedData(userId);
-    } else {
-      Alert.alert('Error', 'Please log in again to view your progress.');
-    }
+  const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#f5c518', label }) => {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const strokeDasharray = `${circumference} ${circumference}`;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+    return (
+      <View style={styles.progressContainer}>
+        <Svg width={size} height={size}>
+          <Circle
+            stroke="#1e3a5f"
+            fill="transparent"
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            strokeWidth={strokeWidth}
+          />
+          <Circle
+            stroke={color}
+            fill="transparent"
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        </Svg>
+        <View style={styles.progressTextContainer}>
+          <Text style={styles.progressPercentage}>{percentage}%</Text>
+          <Text style={styles.progressLabel}>{label}</Text>
+        </View>
+      </View>
+    );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#f5c518" />
-        <Text style={styles.loadingText}>Loading your quiz results...</Text>
+        <Text style={styles.loadingText}>Loading your progress...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>⚠️ Error Loading Progress</Text>
-        <Text style={styles.errorMessage}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={retryFetch}>
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle-outline" size={64} color="#FF5722" />
+        <Text style={styles.errorTitle}>Something went wrong</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={initializeData}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  if (!userId) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>🔐 Please Log In</Text>
-        <Text style={styles.errorMessage}>You need to be logged in to view your progress.</Text>
-        <TouchableOpacity 
-          style={styles.retryButton} 
-          onPress={() => navigation?.navigate('Login')}
-        >
-          <Text style={styles.retryButtonText}>Go to Login</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const stats = calculateStats();
+
+  // Dynamic feedback based on current performance
+  const getDynamicFeedback = () => {
+    if (!stats) return "Take a quiz to get started!";
+    
+    const { averageScore, totalQuizzes } = stats;
+    
+    console.log('Dynamic Feedback for average score:', averageScore);
+    
+    if (averageScore >= 90) return `Excellent! ${averageScore}% average - you're ready for the test!`;
+    if (averageScore >= 80) return `Great progress! ${averageScore}% average - keep it up!`;
+    if (averageScore >= 70) return `Good improvement! ${averageScore}% average - getting better!`;
+    if (averageScore >= 60) return `Making progress! ${averageScore}% average - study focus areas below.`;
+    return `Room for improvement! ${averageScore}% average - focus on the recommendations below.`;
+  };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#f5c518']}
+          tintColor="#f5c518"
+        />
+      }
+    >
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>📊 My Quiz Progress</Text>
+        <Text style={styles.title}>My Progress</Text>
+        <Text style={styles.subtitle}>Pull down to refresh</Text>
+        {/* Dynamic Feedback */}
+        <Text style={styles.dynamicFeedback}>{getDynamicFeedback()}</Text>
       </View>
 
-      {/* Show message when no quiz results */}
-      {results.length === 0 && !loading && (
-        <View style={styles.emptyStateCard}>
-          <Text style={styles.emptyStateIcon}>📝</Text>
-          <Text style={styles.emptyStateTitle}>No Quiz Results Yet</Text>
-          <Text style={styles.emptyStateText}>
-            Take some practice quizzes to see your progress analysis and personalized study recommendations!
-          </Text>
+      {/* Circular Progress Overview */}
+      {stats && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Performance Overview</Text>
+          <View style={styles.circularStatsGrid}>
+            <CircularProgress 
+              percentage={stats.averageScore} 
+              color={stats.averageScore >= 80 ? '#28a745' : stats.averageScore >= 60 ? '#f5c518' : '#dc3545'}
+              label="Average"
+            />
+            <CircularProgress 
+              percentage={stats.bestScore} 
+              color={stats.bestScore >= 80 ? '#28a745' : stats.bestScore >= 60 ? '#f5c518' : '#dc3545'}
+              label="Best Score"
+            />
+            <CircularProgress 
+              percentage={stats.latestScore} 
+              color={stats.latestScore >= 80 ? '#28a745' : stats.latestScore >= 60 ? '#f5c518' : '#dc3545'}
+              label="Latest"
+            />
+          </View>
+          <View style={styles.quizCountContainer}>
+            <Text style={styles.quizCountNumber}>{stats.totalQuizzes}</Text>
+            <Text style={styles.quizCountLabel}>Total Quizzes Completed</Text>
+          </View>
         </View>
       )}
 
-      {/* Statistics Card */}
-      {results.length > 0 && (() => {
-        const stats = calculateStats();
-        return (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>📈 Quiz Statistics</Text>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.totalQuizzes}</Text>
-                <Text style={styles.statLabel}>Total Quizzes</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.averageScore}%</Text>
-                <Text style={styles.statLabel}>Average Score</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.bestScore}%</Text>
-                <Text style={styles.statLabel}>Best Score</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.latestScore}%</Text>
-                <Text style={styles.statLabel}>Latest Score</Text>
-              </View>
+      {/* AI Insights */}
+      {studyPlan && studyPlan.ai_insights && studyPlan.ai_insights.length > 0 && (
+        <View style={styles.card}>
+          <View style={styles.aiHeader}>
+            <Text style={styles.cardTitle}>AI Study Guide</Text>
+            <View style={styles.aiBadge}>
+              <Text style={styles.badgeText}>AI POWERED</Text>
             </View>
           </View>
-        );
-      })()}
-
-      {/* Quiz Results List */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>🎯 Quiz Results History</Text>
-        {results.length > 0 ? (
-          results.map((result, index) => {
-            const percentage = Math.round((result.score / result.total_questions) * 100);
-            const scoreColor = percentage >= 80 ? '#4CAF50' : percentage >= 60 ? '#FF9800' : '#F44336';
-            const date = new Date(result.date_taken || Date.now()).toLocaleDateString();
-            
-            return (
-              <View key={index} style={styles.resultItem}>
-                <View style={styles.resultHeader}>
-                  <Text style={styles.resultNumber}>Quiz #{results.length - index}</Text>
-                  <Text style={styles.resultDate}>{date}</Text>
-                </View>
-                <View style={styles.resultDetails}>
-                  <Text style={styles.resultText}>
-                    Score: <Text style={[styles.scoreText, { color: scoreColor }]}>{percentage}%</Text>
-                  </Text>
-                  <Text style={styles.resultText}>
-                    Questions: {result.score}/{result.total_questions} correct
-                  </Text>
-                  {result.state && (
-                    <Text style={styles.resultText}>
-                      State: <Text style={styles.stateText}>{result.state}</Text>
+          
+          <Text style={styles.aiSubtitle}>
+            Personalized for {studyPlan.state?.toUpperCase()} driving test
+          </Text>
+          
+          {/* Weak Areas */}
+          {studyPlan.weak_areas && studyPlan.weak_areas.length > 0 && (
+            <View style={styles.weakAreasSection}>
+              <Text style={styles.sectionTitle}>Focus Areas</Text>
+              <View style={styles.weakAreasList}>
+                {studyPlan.weak_areas.map((area, index) => (
+                  <View key={index} style={styles.weakAreaChip}>
+                    <Text style={styles.weakAreaText}>
+                      {area.replace(/_/g, ' ').toUpperCase()}
                     </Text>
-                  )}
-                </View>
+                  </View>
+                ))}
               </View>
-            );
-          })
-        ) : (
-          <Text style={styles.noDataText}>
-            No quiz results yet. Take your first quiz to see your progress! 🚗
+            </View>
+          )}
+          
+          {/* AI Insights - NO TEXT PROCESSING - SHOW FULL CONTENT */}
+          <View style={styles.insightsSection}>
+            <Text style={styles.sectionTitle}>Study Recommendations</Text>
+            {studyPlan.ai_insights.map((insight, index) => {
+              console.log(`Insight ${index + 1} full text:`, insight);
+              return (
+                <View key={index} style={styles.insightBox}>
+                  <View style={styles.insightHeader}>
+                    <Text style={styles.insightNumber}>Tip {index + 1}</Text>
+                  </View>
+                  <Text style={styles.insightText}>{insight}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Study Tips */}
+      {studyPlan && studyPlan.study_tips && studyPlan.study_tips.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Quick Study Tips</Text>
+          {studyPlan.study_tips.slice(0, 4).map((tip, index) => (
+            <View key={index} style={styles.tipItem}>
+              <Text style={styles.tipBullet}>•</Text>
+              <Text style={styles.tipText}>{tip}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Recommended Study Time */}
+      {studyPlan && studyPlan.recommended_time && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Daily Study Goal</Text>
+          <Text style={styles.timeText}>{studyPlan.recommended_time}</Text>
+          <Text style={styles.timeSubtext}>Based on your current performance</Text>
+        </View>
+      )}
+
+      {/* Empty State */}
+      {results.length === 0 && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>�</Text>
+          <Text style={styles.emptyTitle}>Start Your Journey</Text>
+          <Text style={styles.emptyText}>
+            Take practice quizzes to get personalized AI study recommendations!
           </Text>
-        )}
-      </View>
-
-      {/* RAG Analysis Section - Always show if we have ragAnalysis data */}
-      {ragAnalysis && ragAnalysis.status === 'success' && (
-        <View style={styles.card}>
-          <View style={styles.ragHeader}>
-            <Text style={styles.cardTitle}>🧠 AI Performance Analysis</Text>
-            <View style={styles.ragBadge}>
-              <Text style={styles.ragBadgeText}>RAG Enhanced</Text>
-            </View>
-          </View>
-          
-          {ragAnalysis.performance_level && (
-            <View style={styles.performanceLevel}>
-              <Text style={styles.performanceLevelTitle}>Performance Level:</Text>
-              <Text style={[
-                styles.performanceLevelText,
-                { color: ragAnalysis.performance_level === 'excellent' ? '#4CAF50' :
-                        ragAnalysis.performance_level === 'good' ? '#FF9800' : '#F44336' }
-              ]}>
-                {ragAnalysis.performance_level.replace('_', ' ').toUpperCase()}
-              </Text>
-            </View>
-          )}
-          
-          {ragAnalysis.overall_score !== undefined && (
-            <View style={styles.performanceLevel}>
-              <Text style={styles.performanceLevelTitle}>Overall Score:</Text>
-              <Text style={styles.performanceLevelText}>
-                {ragAnalysis.overall_score}%
-              </Text>
-            </View>
-          )}
-          
-          {ragAnalysis.analysis && (
-            <Text style={styles.analysisText}>{ragAnalysis.analysis}</Text>
-          )}
-          
-          {ragAnalysis.weak_areas && ragAnalysis.weak_areas.length > 0 && (
-            <View style={styles.weakAreasContainer}>
-              <Text style={styles.weakAreasTitle}>🎯 Areas to Focus On:</Text>
-              {ragAnalysis.weak_areas.map((area, index) => (
-                <View key={index} style={styles.weakAreaItem}>
-                  <Text style={styles.weakAreaText}>• {area.replace('_', ' ').toUpperCase()}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          
-          {ragAnalysis.total_quizzes !== undefined && (
-            <View style={styles.performanceLevel}>
-              <Text style={styles.performanceLevelTitle}>Total Quizzes Taken:</Text>
-              <Text style={styles.performanceLevelText}>
-                {ragAnalysis.total_quizzes}
-              </Text>
-            </View>
-          )}
+          <TouchableOpacity 
+            style={styles.startButton}
+            onPress={() => navigation.navigate('QuizScreen')}
+          >
+            <Text style={styles.startButtonText}>Take First Quiz</Text>
+          </TouchableOpacity>
         </View>
       )}
-
-      {/* Personalized Study Plan - Always show if we have studyPlan data */}
-      {studyPlan && studyPlan.status === 'success' && (
-        <View style={styles.card}>
-          <View style={styles.ragHeader}>
-            <Text style={styles.cardTitle}>📚 Personalized Study Plan</Text>
-            <View style={styles.ragBadge}>
-              <Text style={styles.ragBadgeText}>AI Generated</Text>
-            </View>
-          </View>
-          
-          {studyPlan.feedback && (
-            <Text style={styles.studyPlanText}>{studyPlan.feedback}</Text>
-          )}
-          
-          {studyPlan.study_tips && studyPlan.study_tips.length > 0 && (
-            <View style={styles.recommendationsContainer}>
-              <Text style={styles.recommendationsTitle}>💡 Study Tips:</Text>
-              {studyPlan.study_tips.map((tip, index) => (
-                <View key={index} style={styles.recommendationItem}>
-                  <Text style={styles.recommendationText}>{tip}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          
-          {studyPlan.recommendations && studyPlan.recommendations.length > 0 && (
-            <View style={styles.recommendationsContainer}>
-              <Text style={styles.recommendationsTitle}>� Study Recommendations:</Text>
-              {studyPlan.recommendations.map((rec, index) => (
-                <View key={index} style={styles.recommendationItem}>
-                  <Text style={styles.recommendationText}>• {rec}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          
-          {studyPlan.recommended_time && (
-            <View style={styles.studyTimeContainer}>
-              <Text style={styles.studyTimeLabel}>⏱️ Recommended Study Time:</Text>
-              <Text style={styles.studyTimeText}>{studyPlan.recommended_time}</Text>
-            </View>
-          )}
-          
-          {studyPlan.estimated_study_time && (
-            <View style={styles.studyTimeContainer}>
-              <Text style={styles.studyTimeLabel}>⏱️ Estimated Study Time:</Text>
-              <Text style={styles.studyTimeText}>{studyPlan.estimated_study_time}</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Loading indicator for personalization */}
-      {loadingPersonalization && (
-        <View style={styles.card}>
-          <View style={styles.personalizationLoading}>
-            <ActivityIndicator size="small" color="#00d4aa" />
-            <Text style={styles.personalizationLoadingText}>Loading AI insights...</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => navigation?.navigate('Quiz')}
-        >
-          <Text style={styles.actionButtonText}>📝 Take New Quiz</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.refreshButton} 
-          onPress={retryFetch}
-        >
-          <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
-        </TouchableOpacity>
-      </View>
     </ScrollView>
   );
 }
@@ -434,37 +308,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a2540',
   },
-  loadingContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#0a2540',
+    padding: 20,
+  },
+  header: {
+    padding: 20,
+    paddingTop: 50,
+    backgroundColor: '#0a2540',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#f5c518',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#d0d7de',
+  },
+  dynamicFeedback: {
+    fontSize: 16,
+    color: '#28a745',
+    fontWeight: '600',
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: '#1e3a5f',
+    borderRadius: 8,
+    textAlign: 'center',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: '#d0d7de',
   },
-  debugText: {
-    fontSize: 12,
-    color: '#7a8fa6',
-    marginBottom: 4,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#0a2540',
-  },
   errorTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#ff6b6b',
-    marginBottom: 10,
-    textAlign: 'center',
+    color: '#f5c518',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  errorMessage: {
+  errorText: {
     fontSize: 16,
     color: '#d0d7de',
     textAlign: 'center',
@@ -474,32 +362,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5c518',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   retryButtonText: {
     color: '#0a2540',
     fontSize: 16,
-    fontWeight: '500',
-  },
-  header: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '600',
   },
   card: {
-    backgroundColor: '#142a4c',
+    backgroundColor: '#1e3a5f',
     margin: 16,
     padding: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 5,
   },
   cardTitle: {
     fontSize: 18,
@@ -507,265 +386,199 @@ const styles = StyleSheet.create({
     color: '#f5c518',
     marginBottom: 16,
   },
-  statsContainer: {
+  // Circular Progress Styles
+  circularStatsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginBottom: 20,
   },
-  statItem: {
+  progressContainer: {
     alignItems: 'center',
-    minWidth: '22%',
-    marginBottom: 10,
+    position: 'relative',
   },
-  statNumber: {
-    fontSize: 24,
+  progressTextContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressPercentage: {
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#00d4aa',
+    color: '#f5c518',
   },
-  statLabel: {
+  progressLabel: {
     fontSize: 12,
     color: '#d0d7de',
-    textAlign: 'center',
+    marginTop: 2,
+  },
+  quizCountContainer: {
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#2d4f73',
+  },
+  quizCountNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#f5c518',
+  },
+  quizCountLabel: {
+    fontSize: 14,
+    color: '#d0d7de',
     marginTop: 4,
   },
-  resultItem: {
-    backgroundColor: '#1c2937',
-    padding: 16,
-    borderRadius: 8,
+  // AI Card Styles
+  aiHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f5c518',
   },
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  resultNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f5c518',
-  },
-  resultDate: {
-    fontSize: 14,
-    color: '#d0d7de',
-  },
-  resultDetails: {
-    gap: 4,
-  },
-  resultText: {
-    fontSize: 14,
-    color: '#ffffff',
-  },
-  scoreText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  stateText: {
-    color: '#74c0fc',
-    fontWeight: '500',
-  },
-  noDataText: {
-    fontSize: 16,
-    color: '#d0d7de',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginVertical: 20,
-    gap: 12,
-  },
-  actionButton: {
-    backgroundColor: '#f5c518',
-    padding: 15,
-    borderRadius: 10,
-    flex: 1,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  actionButtonText: {
-    color: '#0a2540',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  refreshButton: {
-    backgroundColor: '#142a4c',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#f5c518',
-    minWidth: 100,
-  },
-  refreshButtonText: {
-    color: '#f5c518',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  // Personalization styles
-  ragHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  ragBadge: {
-    backgroundColor: '#00d4aa',
+  aiBadge: {
+    backgroundColor: '#28a745',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  ragBadgeText: {
-    color: '#0a2540',
+  badgeText: {
+    color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
   },
-  performanceLevel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  performanceLevelTitle: {
-    color: '#d0d7de',
+  aiSubtitle: {
     fontSize: 14,
-    marginRight: 8,
-  },
-  performanceLevelText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
-  },
-  analysisText: {
     color: '#d0d7de',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 15,
+    marginBottom: 16,
     fontStyle: 'italic',
   },
-  weakAreasContainer: {
-    marginTop: 10,
-    padding: 12,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#F44336',
+  weakAreasSection: {
+    marginBottom: 20,
   },
-  weakAreasTitle: {
-    color: '#F44336',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f5c518',
+    marginBottom: 12,
   },
-  weakAreaItem: {
-    marginBottom: 4,
+  weakAreasList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  weakAreaChip: {
+    backgroundColor: '#3d5a80',
+    borderColor: '#f5c518',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   weakAreaText: {
-    color: '#d0d7de',
-    fontSize: 14,
+    color: '#f5c518',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  studyPlanText: {
-    color: '#d0d7de',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 15,
+  insightsSection: {
+    marginTop: 4,
   },
-  recommendationsContainer: {
-    marginTop: 10,
-    padding: 12,
-    backgroundColor: 'rgba(0, 212, 170, 0.1)',
+  insightBox: {
+    backgroundColor: '#2d4f73',
+    padding: 16,
     borderRadius: 8,
+    marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#00d4aa',
+    borderLeftColor: '#28a745',
   },
-  recommendationsTitle: {
-    color: '#00d4aa',
-    fontSize: 14,
-    fontWeight: 'bold',
+  insightHeader: {
     marginBottom: 8,
   },
-  recommendationItem: {
-    marginBottom: 4,
-  },
-  recommendationText: {
-    color: '#d0d7de',
-    fontSize: 14,
-  },
-  studyTimeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: 'rgba(245, 197, 24, 0.1)',
-    borderRadius: 6,
-  },
-  studyTimeLabel: {
-    color: '#f5c518',
-    fontSize: 14,
-    marginRight: 8,
-  },
-  studyTimeText: {
-    color: '#d0d7de',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  personalizationLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  personalizationLoadingText: {
-    color: '#d0d7de',
-    fontSize: 14,
-    marginLeft: 10,
-    fontStyle: 'italic',
-  },
-  retryButton: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  retryButtonText: {
-    color: 'white',
+  insightNumber: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#28a745',
   },
-  emptyStateCard: {
-    backgroundColor: 'white',
-    margin: 15,
-    padding: 30,
-    borderRadius: 10,
+  insightText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#d0d7de',
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  // Study Tips Styles
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  tipBullet: {
+    fontSize: 16,
+    color: '#f5c518',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#d0d7de',
+  },
+  // Time Card Styles
+  timeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#f5c518',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  timeSubtext: {
+    fontSize: 14,
+    color: '#d0d7de',
+    textAlign: 'center',
+  },
+  // Empty State Styles
+  emptyState: {
+    backgroundColor: '#1e3a5f',
+    margin: 16,
+    padding: 40,
+    borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 5,
   },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 15,
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
   },
-  emptyStateTitle: {
-    fontSize: 20,
+  emptyTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
+    color: '#f5c518',
+    marginBottom: 12,
     textAlign: 'center',
   },
-  emptyStateText: {
+  emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#d0d7de',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 24,
+  },
+  startButton: {
+    backgroundColor: '#f5c518',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  startButtonText: {
+    color: '#0a2540',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
