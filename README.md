@@ -167,7 +167,9 @@ npx expo start  # Runs on http://localhost:8081
 
 ---
 
-```
+## Demo chatbot
+  https://www.youtube.com/shorts/hiaX9OJV-j8
+ ```
 Happy Driving & Learning with DriveSmart! 🚗💡
 ```
 
