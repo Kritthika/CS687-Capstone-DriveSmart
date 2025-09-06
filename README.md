@@ -1,7 +1,9 @@
 
 # 📋 DriveSmart - AI-Enhanced Driving Education App
 
-**DriveSmart** is a clean, simplified driving education app focused on **Quiz Score → AI Analysis → RAG from PDFs → Study Tips**, powered by a RAG-enhanced conversational AI agent.
+## Project Overview
+
+**DriveSmart** is an AI-powered driving education platform that helps users prepare for their driving license tests. The app features interactive quizzes, AI-driven performance analysis, and a RAG-enhanced chatbot that provides personalized study recommendations based on official state driving manuals. Built with Flask backend and React Native frontend, it offers real-time progress tracking and adaptive learning tailored to each user's performance.
 
 ---
 
@@ -140,21 +142,44 @@ Quiz Result → Database → Performance Analysis → RAG Enhancement → Study 
 
 ## 🚀 How to Run
 
-### Backend
+### Local Development
 
+#### Backend
 ```bash
 cd backend
 pip install -r requirements.txt
 python app.py  # Runs on http://localhost:5001
 ```
 
-### Frontend
-
+#### Frontend
 ```bash
 cd frontend
 npm install
 npx expo start  # Runs on http://localhost:8081
 ```
+
+### GitHub Codespaces
+
+#### 1. Setup Backend
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py  # Will run on http://localhost:5001
+```
+
+#### 2. Setup Frontend (New Terminal)
+```bash
+cd frontend
+npm install
+npx expo start --web  # Use --web flag for Codespaces
+```
+
+#### 3. Access the App
+- Backend API: Use the forwarded port for localhost:5001
+- Frontend: Use the forwarded port for localhost:8081
+- Update `frontend/screens/config.js` with your Codespaces backend URL
+
+**Note:** In Codespaces, ports are automatically forwarded. Copy the forwarded URL for port 5001 and update your frontend config to use it as the API base URL.
 
 ---
 
