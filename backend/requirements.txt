@@ -1,32 +1,52 @@
-# Core Flask dependencies
+# =========================================
+# DriveSmart Backend - CodeSpaces Optimized
+# =========================================
+# Lightweight dependencies for fast installation
+
+# Core Flask Framework (Required)
 Flask==2.3.3
 Flask-CORS==4.0.0
+
+# Production Server (Required for deployment)
 gunicorn==21.2.0
 
-# Environment and configuration
-python-dotenv==1.0.0
-
-# HTTP requests
+# HTTP Client (Required)
 requests==2.31.0
 
-# AI and LLM integration
+# JWT Authentication (Required)
+PyJWT==2.8.0
+
+# AI Integration (Required - Lightweight)
 ollama==0.1.7
 
-# RAG system dependencies
-langchain==0.0.350
-langchain-community==0.0.38
-sentence-transformers==2.2.2
-faiss-cpu==1.7.4
-PyPDF2==3.0.1
-chromadb==0.4.18
+# Fast Text Matching (Required for RAG)
+rapidfuzz==3.5.2
 
-# RAGAS evaluation framework
-ragas==0.1.7
-datasets==2.14.6
-langchain-openai==0.0.2
+# System Monitoring (Required for utils)
+psutil==5.9.6
 
-# Development and testing (optional)
-pytest==7.4.2
-pytest-flask==1.2.0
-black==23.9.1
-flake8==6.1.0
+# =========================================
+# Development Dependencies (Optional)
+# =========================================
+# Uncomment for development work
+
+# python-dotenv==1.0.0
+# pytest==7.4.2
+# pytest-flask==1.2.0
+
+# =========================================
+# REMOVED HEAVY DEPENDENCIES
+# =========================================
+# These were removed for CodeSpaces performance:
+# 
+# langchain==0.0.350           # 500+ MB, not used in core
+# langchain-community==0.0.38  # Heavy, not used
+# sentence-transformers==2.2.2 # 2+ GB, not used  
+# faiss-cpu==1.7.4            # 200+ MB, not used
+# chromadb==0.4.18            # 300+ MB, not used
+# ragas==0.1.7                # Evaluation only, not runtime
+# datasets==2.14.6            # 500+ MB, not used
+# langchain-openai==0.0.2     # Not used
+# PyPDF2==3.0.1              # Text files used instead
+# black==23.9.1               # Dev only
+# flake8==6.1.0               # Dev only
