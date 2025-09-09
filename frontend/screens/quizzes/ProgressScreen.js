@@ -54,6 +54,7 @@ export default function ProgressScreen({ route, navigation }) {
       if (response.ok) {
         const data = await response.json();
         const resultsArray = Array.isArray(data) ? data : (data.results || []);
+        console.log('Quiz Results Data:', resultsArray);
         setResults(resultsArray);
       }
     } catch (err) {
@@ -253,7 +254,13 @@ export default function ProgressScreen({ route, navigation }) {
                   <View style={styles.insightHeader}>
                     <Text style={styles.insightNumber}>Tip {index + 1}</Text>
                   </View>
-                  <Text style={styles.insightText}>{insight}</Text>
+                  <Text 
+                    style={styles.insightText}
+                    numberOfLines={0}
+                    adjustsFontSizeToFit={false}
+                  >
+                    {insight}
+                  </Text>
                 </View>
               );
             })}
@@ -507,6 +514,8 @@ const styles = StyleSheet.create({
     color: '#d0d7de',
     flexWrap: 'wrap',
     flex: 1,
+    textAlign: 'left',
+    width: '100%',
   },
   // Study Tips Styles
   tipItem: {

@@ -15,7 +15,6 @@ from auth import auth_bp
 from quiz import quiz_bp  
 from chat import chat_bp  # Enhanced chat with RAG
 from utils import utils_bp
-from evaluation_api import evaluation_bp  # RAGAS evaluation endpoints
 
 def create_app():
     """Create and configure Flask application"""
@@ -29,7 +28,6 @@ def create_app():
     app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
     app.register_blueprint(utils_bp, url_prefix='/api')
-    app.register_blueprint(evaluation_bp)  # RAGAS evaluation endpoints
 
     # Legacy routes for backward compatibility
     @app.route('/register', methods=['POST'])
@@ -99,10 +97,10 @@ def create_app():
 if __name__ == '__main__':
     init_db()
     app = create_app()
-    print("🚗 DriveSmart API v2.0 - Modular Architecture")
-    print("📊 Core Flow: Quiz Score → AI Analysis → RAG → Study Tips")
-    print("🏗️  Clean Architecture: Each module handles one responsibility")
-    print("🤖 RAG-Enhanced Conversational AI Agent Active")
+    print(" DriveSmart API v2.0 - Modular Architecture")
+    print("Core Flow: Quiz Score → AI Analysis → RAG → Study Tips")
+    print(" Clean Architecture: Each module handles one responsibility")
+    print(" RAG-Enhanced Conversational AI Agent Active")
     app.run(
         host='0.0.0.0', 
         port=int(os.environ.get('PORT', 5001)), 

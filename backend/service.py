@@ -115,7 +115,7 @@ def generate_fallback_response(prompt: str) -> str:
         
     # Default
     else:
-        return "🚗 **I'm here to help with driving questions!** Ask me about traffic signs, speed limits, right-of-way, parking rules, or driving safety."
+        return " **I'm here to help with driving questions!** Ask me about traffic signs, speed limits, right-of-way, parking rules, or driving safety."
 
 
 def get_study_recommendations(user_id: int) -> dict:
@@ -175,13 +175,13 @@ def get_fallback_study_recommendations(user_id: int) -> dict:
             'level': 'unknown',
             'quizzes_taken': 0
         },
-        'feedback': '📚 Welcome to DriveSmart! Start with traffic fundamentals and work your way up.',
+        'feedback': ' Welcome to DriveSmart! Start with traffic fundamentals and work your way up.',
         'study_tips': [
-            '🚦 Master basic traffic signs and their meanings',
-            '👥 Learn right-of-way rules at intersections', 
-            '🅿️ Practice parking regulations and distances',
-            '⚡ Review speed limits for different road types',
-            '🏫 Study school zone and pedestrian safety rules'
+            'Master basic traffic signs and their meanings',
+            ' Learn right-of-way rules at intersections', 
+            ' Practice parking regulations and distances',
+            ' Review speed limits for different road types',
+            ' Study school zone and pedestrian safety rules'
         ],
         'ai_insights': [],
         'weak_areas': ['traffic_signs', 'right_of_way'],

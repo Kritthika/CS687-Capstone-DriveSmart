@@ -13,10 +13,10 @@ from database import get_db
 try:
     from service import get_study_recommendations, analyze_user_performance, track_user_progress
     ENHANCED_SERVICE_AVAILABLE = True
-    print("✅ Enhanced service loaded for quiz")
+    print(" Enhanced service loaded for quiz")
 except ImportError:
     ENHANCED_SERVICE_AVAILABLE = False
-    print("⚠️ Enhanced service not available for quiz")
+    print("Enhanced service not available for quiz")
     
     # Fallback functions
     def get_study_recommendations(user_id):
@@ -422,11 +422,11 @@ def get_rag_study_recommendations(user_id):
             return jsonify({
                 'status': 'fallback',
                 'study_tips': [
-                    "📖 Read your state's official driving manual",
-                    "🚗 Take more practice tests to improve",
-                    "🛑 Focus on traffic signs and road rules",
-                    "⚖️ Learn right-of-way regulations",
-                    "🏫 Study school zone and pedestrian safety"
+                    " Read your state's official driving manual",
+                    " Take more practice tests to improve",
+                    " Focus on traffic signs and road rules",
+                    " Learn right-of-way regulations",
+                    " Study school zone and pedestrian safety"
                 ],
                 'feedback_message': 'General study recommendations available.',
                 'study_time': '30 minutes daily',

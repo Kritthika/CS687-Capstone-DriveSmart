@@ -200,7 +200,7 @@ export default function PracticeTestScreen({ route, navigation }) {
             {correctAnswersCount} out of {quizQuestions.length} correct
           </Text>
           <Text style={styles.scoreEmoji}>
-            {score >= 80 ? '🌟 Excellent!' : score >= 60 ? '👍 Good Job!' : '📚 Keep Studying!'}
+            {score >= 80 ? '🌟 Excellent!' : score >= 60 ? 'Good Job!' : ' Keep Studying!'}
           </Text>
         </View>
 
@@ -248,7 +248,7 @@ export default function PracticeTestScreen({ route, navigation }) {
 
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity style={styles.retakeButton} onPress={retakeQuiz}>
-            <Text style={styles.retakeButtonText}>🔄 Retake Quiz</Text>
+            <Text style={styles.retakeButtonText}>Retake Quiz</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

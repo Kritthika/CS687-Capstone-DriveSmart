@@ -48,7 +48,7 @@ class LightweightRAGAgent:
             except Exception as e:
                 print(f" Error loading {filepath}: {e}")
         
-        print(f"📚 Total documents loaded: {len(self.state_documents)}")
+        print(f"Total documents loaded: {len(self.state_documents)}")
     
     def _search_documents(self, query: str, state: str) -> List[str]:
         """Enhanced search with fuzzy matching for better coverage"""
@@ -110,14 +110,14 @@ class LightweightRAGAgent:
         top_chunks = [chunk for chunk, score in scored_chunks[:5] if score >= 5]
         
         precision = len(top_chunks) / max(len(scored_chunks), 1) if scored_chunks else 0
-        print(f"🎯 Search precision: {precision:.3f} ({len(top_chunks)}/{len(scored_chunks)})")
+        print(f" Search precision: {precision:.3f} ({len(top_chunks)}/{len(scored_chunks)})")
         
         return top_chunks
     
     def chat_with_rag_fast(self, message: str, state: str = None) -> Dict:
         """RAG chat using your actual documents"""
         start_time = time.time()
-        print(f"🔍 Searching {state or 'Washington'} documents for: {message[:40]}...")
+        print(f"Searching {state or 'Washington'} documents for: {message[:40]}...")
         
         try:
             # Search actual documents
@@ -134,7 +134,7 @@ class LightweightRAGAgent:
                 contexts_used = 0
             
             response_time = time.time() - start_time
-            print(f"✅ Response generated in {response_time:.2f}s using {contexts_used} contexts")
+            print(f" Response generated in {response_time:.2f}s using {contexts_used} contexts")
             
             return {
                 'response': response,
@@ -262,7 +262,7 @@ Give a clear, practical answer in 100-150 words. Include specific details from t
 
 # Test function
 def test_rag():
-    print("🧪 TESTING ENHANCED RAG ")
+    print("TESTING ENHANCED RAG ")
     print("=" * 55)
     
     rag = LightweightRAGAgent()
@@ -284,11 +284,11 @@ def test_rag():
         
         print(f"\nQ{i}: {question}")
         print(f"A{i}: {result['response']}")
-        print(f"📊 Source: {result['source']} | Time: {result['response_time_ms']/1000:.1f}s")
-        print(f"📈 Contexts: {result.get('contexts_used', 0)}")
+        print(f"Source: {result['source']} | Time: {result['response_time_ms']/1000:.1f}s")
+        print(f" Contexts: {result.get('contexts_used', 0)}")
         print("-" * 50)
     
-    print("\n🏆 PERFORMANCE TARGET:")
+    print("\n PERFORMANCE TARGET:")
     print(f"   Average Response Time: {total_time/len(tests):.1f}s")
     print(f"   Target: 85%+ Context Precision for optimal performance")
     print(f"   Status: Enhanced search with fuzzy matching")
@@ -296,7 +296,7 @@ def test_rag():
 
 
 if __name__ == "__main__":
-    print("🎯 DriveSmart RAG Testing")
+    print("DriveSmart RAG Testing")
     print("Running Standard Performance Test")
     print()
     

@@ -183,7 +183,6 @@ npx expo start --web  # Use --web flag for Codespaces
 
 ---
 
-## 📝 Notes
 
 * The frontend uses **React Native/Expo** for mobile UI.
 * The backend uses **Flask** and **SQLite** for lightweight storage.

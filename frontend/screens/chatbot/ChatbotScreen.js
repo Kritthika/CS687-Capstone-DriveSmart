@@ -29,7 +29,7 @@ export default function ChatbotScreen({ navigation }) {
     setMessages([
       { 
         id: '1', 
-        text: `🚗 Hi! I'm your AI driving tutor for ${selectedState} laws and regulations. Ask me about traffic rules, signs, parking, and more! I provide detailed 150-200 word responses with complete explanations, so please allow 60-90 seconds for comprehensive answers.`, 
+        text: ` Hi! I'm your AI driving tutor for ${selectedState} laws and regulations. Ask me about traffic rules, signs, parking, and more! I provide detailed 150-200 word responses with complete explanations, so please allow 60-90 seconds for comprehensive answers.`, 
         fromUser: false,
       },
     ]);
@@ -61,7 +61,7 @@ export default function ChatbotScreen({ navigation }) {
     // Add "tutor is typing" temporary message
     const typingMessage = {
       id: 'typing-' + Date.now(),
-      text: '🤔 Tutor is analyzing traffic laws... (This may take 60-90 seconds for detailed responses)',
+      text: ' Tutor is analyzing traffic laws... (This may take 60-90 seconds for detailed responses)',
       fromUser: false,
       temporary: true
     };
