@@ -1,38 +1,27 @@
-# =========================================
-# DriveSmart Backend - CodeSpaces Optimized
-# =========================================
-# Lightweight dependencies for fast installation
+# DriveSmart Backend - Production Ready
+# Essential dependencies only
 
-# Core Flask Framework (Required)
+# Core Flask Framework
 Flask==2.3.3
 Flask-CORS==4.0.0
 
-# Production Server (Required for deployment)
+# Production Server
 gunicorn==21.2.0
 
-# HTTP Client (Required)
+# HTTP Client for API calls
 requests==2.31.0
 
-# JWT Authentication (Required)
+# JWT Authentication
 PyJWT==2.8.0
 
-# AI Integration (Required - Lightweight)
+# AI Integration (Ollama)
 ollama==0.1.7
 
-# Fast Text Matching (Required for RAG)
+# Fast Text Matching for RAG
 rapidfuzz==3.5.2
 
-# System Monitoring (Required for utils)
+# System Monitoring
 psutil==5.9.6
-
-# =========================================
-# Development Dependencies (Optional)
-# =========================================
-# Uncomment for development work
-
-# python-dotenv==1.0.0
-# pytest==7.4.2
-# pytest-flask==1.2.0
 
 # =========================================
 # REMOVED HEAVY DEPENDENCIES
