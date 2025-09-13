@@ -3,6 +3,14 @@ node_modules/
 frontend/node_modules/
 backend/__pycache__/
 
+# Build outputs
+frontend/dist/
+frontend/.expo/
+
+# Large files (exclude state rules PDFs which are needed)
+*.pdf
+!frontend/assets/staterules/*.pdf
+
 # Environment variables
 .env
 .env.local

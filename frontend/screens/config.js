@@ -9,8 +9,8 @@ const getBaseURL = () => {
     return 'http://192.168.0.22:5001';
   }
   
-  // Production URL
-  return 'https://your-production-api.com';
+  // Production URL - Replace with your actual Render backend URL
+  return 'https://drivesmart-backend.onrender.com';
 };
 
 export const BASE_URL = getBaseURL();

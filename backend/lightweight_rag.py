@@ -8,10 +8,17 @@ instead of using hardcoded responses. Much more accurate!
 """
 
 import time
-import ollama
 import os
 from typing import Dict, List
 from rapidfuzz import fuzz
+
+# Try to import ollama, but have fallback for production
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    print("Ollama not available - using fallback responses")
 
 class LightweightRAGAgent:
     """
@@ -169,6 +176,11 @@ Official Text:
 Give a clear, practical answer in 100-150 words. Include specific details from the text."""
 
         try:
+            # Check if Ollama is available
+            if not OLLAMA_AVAILABLE:
+                # Use fallback response extraction
+                return self._extract_detailed_answer(query, contexts)
+            
             # Optimized Ollama settings for speed
             response = ollama.generate(
                 model='mistral:latest',
@@ -193,7 +205,7 @@ Give a clear, practical answer in 100-150 words. Include specific details from t
             
         except Exception as e:
             print(f"Ollama generation error: {e}")
-            return f"Based on {state or 'Washington'} driving laws: {contexts[0][:200]}..." if contexts else "I couldn't find specific information about that."
+            return self._extract_detailed_answer(query, contexts)
     
     def _extract_detailed_answer(self, query: str, contexts: List[str]) -> str:
         """Extract comprehensive answer from context when Ollama fails - ensure complete sentences"""
