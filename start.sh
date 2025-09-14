@@ -1,18 +1,27 @@
 #!/bin/bash
-# Start script for Railway deployment
+set -e  # Exit on any error
 
-echo "Starting Ollama service..."
+echo "🚀 DriveSmart Backend Starting..."
+echo "Working directory: $(pwd)"
+echo "Contents: $(ls -la)"
+
+echo "📁 Backend directory contents:"
+ls -la ./backend/ || echo "Backend directory not found"
+
+echo "🤖 Starting Ollama service..."
 # Start Ollama in background
 ollama serve &
+OLLAMA_PID=$!
 
-# Wait for Ollama to be ready
-echo "Waiting for Ollama to initialize..."
+echo "⏳ Waiting for Ollama to initialize..."
 sleep 20
 
-# Pull the required model
-echo "Downloading Mistral model..."
+echo "📥 Downloading Mistral model..."
 ollama pull mistral:latest
 
-echo "Starting Flask application from /app/backend..."
+echo "🐍 Starting Flask application..."
+echo "Python version: $(python --version)"
+echo "Starting from: $(pwd)"
+
 # Start the Flask application
 exec python ./backend/app.py
