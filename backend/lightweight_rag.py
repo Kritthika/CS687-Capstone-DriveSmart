@@ -37,9 +37,9 @@ class LightweightRAGAgent:
         """Load your actual state driving manuals"""
         # Try both local and production paths
         state_files = {
-            'washington': ['../frontend/assets/staterules/Washington.txt', './staterules/Washington.txt'],
-            'california': ['../frontend/assets/staterules/California.txt', './staterules/California.txt'],
-            'florida': ['../frontend/assets/staterules/Florida.txt', './staterules/Florida.txt']
+            'washington': ['../frontend/assets/staterules/Washington.txt', './staterules/Washington.txt', '../staterules/Washington.txt'],
+            'california': ['../frontend/assets/staterules/California.txt', './staterules/California.txt', '../staterules/California.txt'],
+            'florida': ['../frontend/assets/staterules/Florida.txt', './staterules/Florida.txt', '../staterules/Florida.txt']
         }
         
         for state, filepaths in state_files.items():
@@ -52,11 +52,11 @@ class LightweightRAGAgent:
                             # Break into searchable chunks
                             chunks = [chunk.strip() for chunk in content.split('\n') if len(chunk.strip()) > 50]
                         self.state_documents[state] = chunks
-                        print(f"Loaded {state}: {len(chunks)} text chunks")
+                        print(f"✅ Loaded {state}: {len(chunks)} text chunks from {filepath}")
                         loaded = True
                         break  # Found and loaded, move to next state
                 except Exception as e:
-                    print(f"Error loading {filepath}: {e}")
+                    print(f"❌ Error loading {filepath}: {e}")
                     continue
             
             if not loaded:

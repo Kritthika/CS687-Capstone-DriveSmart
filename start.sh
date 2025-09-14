@@ -14,5 +14,5 @@ echo "Downloading Mistral model..."
 ollama pull mistral:latest
 
 echo "Starting Flask application..."
-# Start the Flask application from the backend directory
-cd backend && python app.py
+# Start the Flask application (already in backend directory due to WORKDIR)
+exec python app.py
