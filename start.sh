@@ -7,12 +7,12 @@ ollama serve &
 
 # Wait for Ollama to be ready
 echo "Waiting for Ollama to initialize..."
-sleep 15
+sleep 20
 
 # Pull the required model
 echo "Downloading Mistral model..."
 ollama pull mistral:latest
 
 echo "Starting Flask application..."
-# Start the Flask application with proper port binding
+# Start the Flask application from the backend directory
 cd backend && python app.py

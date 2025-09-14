@@ -4,6 +4,7 @@ FROM python:3.11-slim
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Ollama
@@ -13,20 +14,20 @@ RUN curl -fsSL https://ollama.ai/install.sh | sh
 WORKDIR /app
 
 # Copy backend requirements and install Python dependencies
-COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
-COPY backend/ backend/
+COPY backend/ ./backend/
 
-# Copy assets needed for RAG
-COPY frontend/assets/staterules/ frontend/assets/staterules/
+# Copy assets needed for RAG (only text files, not PDFs)
+COPY frontend/assets/staterules/*.txt ./backend/staterules/
 
 # Expose port
 EXPOSE 5001
 
-# Start script that runs Ollama and the Flask app
-COPY start.sh start.sh
-RUN chmod +x start.sh
+# Start script
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
 
 CMD ["./start.sh"]

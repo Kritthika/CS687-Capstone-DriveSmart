@@ -35,25 +35,32 @@ class LightweightRAGAgent:
         
     def _load_state_documents(self):
         """Load your actual state driving manuals"""
+        # Try both local and production paths
         state_files = {
-            'washington': '../frontend/assets/staterules/Washington.txt',
-            'california': '../frontend/assets/staterules/California.txt',
-            'florida': '../frontend/assets/staterules/Florida.txt'
+            'washington': ['../frontend/assets/staterules/Washington.txt', './staterules/Washington.txt'],
+            'california': ['../frontend/assets/staterules/California.txt', './staterules/California.txt'],
+            'florida': ['../frontend/assets/staterules/Florida.txt', './staterules/Florida.txt']
         }
         
-        for state, filepath in state_files.items():
-            try:
-                if os.path.exists(filepath):
-                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
-                        # Break into searchable chunks
-                        chunks = [chunk.strip() for chunk in content.split('\n') if len(chunk.strip()) > 50]
+        for state, filepaths in state_files.items():
+            loaded = False
+            for filepath in filepaths:
+                try:
+                    if os.path.exists(filepath):
+                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                            content = f.read()
+                            # Break into searchable chunks
+                            chunks = [chunk.strip() for chunk in content.split('\n') if len(chunk.strip()) > 50]
                         self.state_documents[state] = chunks
                         print(f"Loaded {state}: {len(chunks)} text chunks")
-                else:
-                    print(f"File not found: {filepath}")
-            except Exception as e:
-                print(f" Error loading {filepath}: {e}")
+                        loaded = True
+                        break  # Found and loaded, move to next state
+                except Exception as e:
+                    print(f"Error loading {filepath}: {e}")
+                    continue
+            
+            if not loaded:
+                print(f"⚠️  Could not load {state} manual from any location")
         
         print(f"Total documents loaded: {len(self.state_documents)}")
     

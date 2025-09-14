@@ -1,0 +1,24 @@
+# Ignore frontend build artifacts
+frontend/node_modules
+frontend/dist
+frontend/.expo
+
+# Ignore development files
+.git
+.gitignore
+README.md
+*.md
+
+# Ignore Python cache
+__pycache__
+*.pyc
+*.pyo
+
+# Ignore local environment
+.env
+.env.local
+
+# Ignore unnecessary root files for Docker build
+package.json
+package.json.backup
+package-lock.json
