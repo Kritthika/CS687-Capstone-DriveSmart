@@ -35,11 +35,26 @@ class LightweightRAGAgent:
         
     def _load_state_documents(self):
         """Load your actual state driving manuals"""
-        # Try both local and production paths
+        # Try multiple possible paths for Docker deployment
         state_files = {
-            'washington': ['../frontend/assets/staterules/Washington.txt', './staterules/Washington.txt', '../staterules/Washington.txt'],
-            'california': ['../frontend/assets/staterules/California.txt', './staterules/California.txt', '../staterules/California.txt'],
-            'florida': ['../frontend/assets/staterules/Florida.txt', './staterules/Florida.txt', '../staterules/Florida.txt']
+            'washington': [
+                '../frontend/assets/staterules/Washington.txt',  # Local development
+                './staterules/Washington.txt',                   # Docker deployment
+                'staterules/Washington.txt',                     # Simple path
+                'Washington.txt'                                 # Direct file
+            ],
+            'california': [
+                '../frontend/assets/staterules/California.txt',
+                './staterules/California.txt',
+                'staterules/California.txt',
+                'California.txt'
+            ],
+            'florida': [
+                '../frontend/assets/staterules/Florida.txt',
+                './staterules/Florida.txt',
+                'staterules/Florida.txt',
+                'Florida.txt'
+            ]
         }
         
         for state, filepaths in state_files.items():
