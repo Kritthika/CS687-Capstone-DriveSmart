@@ -22,3 +22,4 @@ __pycache__
 package.json
 package.json.backup
 package-lock.json
+Procfile

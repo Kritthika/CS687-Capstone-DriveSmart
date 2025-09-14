@@ -30,7 +30,5 @@ EXPOSE 5001
 COPY start.sh ./start.sh
 RUN chmod +x ./start.sh
 
-# Set working directory to backend for app execution
-WORKDIR /app/backend
-
-CMD ["/app/start.sh"]
+# Stay in /app directory for execution
+CMD ["./start.sh"]

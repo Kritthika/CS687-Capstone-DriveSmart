@@ -13,6 +13,6 @@ sleep 20
 echo "Downloading Mistral model..."
 ollama pull mistral:latest
 
-echo "Starting Flask application..."
-# Start the Flask application (already in backend directory due to WORKDIR)
-exec python app.py
+echo "Starting Flask application from /app/backend..."
+# Start the Flask application
+exec python ./backend/app.py
