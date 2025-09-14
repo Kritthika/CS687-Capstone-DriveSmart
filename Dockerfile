@@ -19,16 +19,7 @@ COPY backend/ ./
 # Copy state manual text files for RAG
 COPY frontend/assets/staterules/*.txt ./staterules/
 
-# Simple startup script
-RUN echo '#!/bin/bash\n\
-echo "Starting Ollama..."\n\
-ollama serve &\n\
-sleep 20\n\
-echo "Pulling model..."\n\
-ollama pull mistral:latest\n\
-echo "Starting Flask..."\n\
-exec python app.py' > start.sh && chmod +x start.sh
-
 EXPOSE 5001
 
-CMD ["./start.sh"]
+# Use bash directly in CMD to avoid script file issues
+CMD ["/bin/bash", "-c", "echo 'Starting Ollama...' && ollama serve & sleep 20 && echo 'Pulling model...' && ollama pull mistral:latest && echo 'Starting Flask...' && exec python app.py"]
