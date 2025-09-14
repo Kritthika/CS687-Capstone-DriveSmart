@@ -1,4 +1,4 @@
-# Multi-stage build for DriveSmart with Ollama
+# Backend-only deployment for Railway with Ollama
 FROM python:3.11-slim
 
 # Install system dependencies
@@ -15,7 +15,6 @@ WORKDIR /app
 # Copy backend requirements and install Python dependencies
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
-RUN pip install ollama
 
 # Copy backend code
 COPY backend/ backend/

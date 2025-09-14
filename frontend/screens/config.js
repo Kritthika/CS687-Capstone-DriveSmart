@@ -9,8 +9,8 @@ const getBaseURL = () => {
     return 'http://192.168.0.22:5001';
   }
   
-  // Production URL - Replace with your actual Render backend URL
-  return 'https://drivesmart-backend.onrender.com';
+  // Production URL - Replace with your Railway deployment URL
+  return 'https://YOUR-RAILWAY-APP-NAME.railway.app';
 };
 
 export const BASE_URL = getBaseURL();
