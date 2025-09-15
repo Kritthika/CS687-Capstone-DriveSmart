@@ -185,38 +185,68 @@ class LightweightRAGAgent:
             }
     
     def _generate_response(self, query: str, contexts: List[str], state: str) -> str:
-        """Generate optimized response with faster Ollama settings"""
-        context_text = "\n\n---SECTION---\n\n".join(contexts[:2])  # Use only top 2 contexts
+        """Generate comprehensive response using Ollama with improved prompting"""
+        if not contexts:
+            return "I don't have specific information about that in the Washington State driving manual. Could you rephrase your question or ask about speed limits, parking rules, traffic signals, or turning regulations?"
         
-        prompt = f"""Answer this driving question using the official manual text below.
+        # Use more context for better responses
+        context_text = "\n\n---SECTION---\n\n".join(contexts[:3])
+        
+        # Enhanced prompt for better responses
+        prompt = f"""You are an expert Washington State driving instructor. Based on the following official Washington State traffic manual excerpts, provide a comprehensive, helpful answer to the student's question.
 
-Question: {query}
-
-Official Text:
+OFFICIAL WASHINGTON STATE TRAFFIC MANUAL EXCERPTS:
 {context_text}
 
-Give a clear, practical answer in 100-150 words. Include specific details from the text."""
+STUDENT QUESTION: {query}
+
+INSTRUCTIONS:
+- Provide a complete, detailed answer (150-200 words)
+- Include specific rules, distances, speeds, or requirements mentioned in the manual
+- Explain the reasoning behind the rules when relevant
+- Be clear and educational
+- Start with "According to Washington State traffic laws..."
+- If the excerpts don't fully answer the question, acknowledge what information is available
+
+COMPREHENSIVE ANSWER:"""
 
         try:
             # Check if Ollama is available
             if not OLLAMA_AVAILABLE:
-                # Use fallback response extraction
                 return self._extract_detailed_answer(query, contexts)
             
-            # Optimized Ollama settings for speed
+            # Better Ollama settings for comprehensive responses
             response = ollama.generate(
                 model='mistral:latest',
                 prompt=prompt,
                 options={
-                    'num_predict': 200,  # Reduced from 400
-                    'temperature': 0.1,  # Reduced for consistency
+                    'num_predict': 300,  # Increased for fuller responses
+                    'temperature': 0.2,  # Slightly more creative
                     'top_p': 0.9,
-                    'num_ctx': 2048,     # Reduced context window
-                    'num_thread': 8      # Use more threads for speed
+                    'num_ctx': 4096,     # Larger context window
+                    'num_thread': 8,
+                    'stop': ['STUDENT QUESTION:', 'OFFICIAL WASHINGTON']  # Stop tokens
                 }
             )
             
             response_text = response['response'].strip()
+            
+            # Clean up and validate the response
+            if len(response_text) < 50:
+                return self._extract_detailed_answer(query, contexts)
+            
+            # Ensure proper length (150-200 words)
+            words = response_text.split()
+            if len(words) > 220:
+                # Find a good stopping point
+                truncated = ' '.join(words[:200])
+                if '.' in truncated[-50:]:
+                    last_period = truncated.rfind('.')
+                    response_text = truncated[:last_period + 1]
+                else:
+                    response_text = truncated + '.'
+            
+            return response_text
             
             # Simple truncation to ~150 words
             words = response_text.split()
@@ -230,68 +260,77 @@ Give a clear, practical answer in 100-150 words. Include specific details from t
             return self._extract_detailed_answer(query, contexts)
     
     def _extract_detailed_answer(self, query: str, contexts: List[str]) -> str:
-        """Extract comprehensive answer from context when Ollama fails - ensure complete sentences"""
+        """Extract comprehensive answer from context with complete sentences"""
         if not contexts:
-            return "No information found in the traffic manual sections regarding this specific question."
+            return "I don't have specific information about that in the Washington State driving manual. Please ask about speed limits, parking regulations, traffic signals, or turning rules."
         
-        relevant_sentences = []
-        query_words = set(word.lower() for word in query.split() if len(word) > 3)
+        # Combine contexts for better analysis
+        full_context = " ".join(contexts[:3])
         
-        for context in contexts[:3]:
-            sentences = [s.strip() for s in context.replace('!', '.').replace('?', '.').split('.') if len(s.strip()) > 20]
-            
-            for sentence in sentences:
-                sentence_words = set(word.lower() for word in sentence.split())
-                overlap = len(query_words.intersection(sentence_words))
-                if overlap > 0:
-                    relevant_sentences.append((sentence, overlap))
+        # Extract complete sentences that are relevant
+        sentences = []
+        for delimiter in ['. ', '! ', '? ']:
+            if delimiter in full_context:
+                parts = full_context.split(delimiter)
+                for part in parts:
+                    clean_part = part.strip()
+                    if len(clean_part) > 30:  # Reasonable sentence length
+                        sentences.append(clean_part + delimiter.strip())
         
-        relevant_sentences.sort(key=lambda x: x[1], reverse=True)
+        if not sentences:
+            # Fallback: split by newlines
+            sentences = [line.strip() for line in full_context.split('\n') if len(line.strip()) > 30]
         
-        answer_parts = []
-        total_words = 0
+        # Score sentences based on relevance to query
+        query_words = set(word.lower() for word in query.split() if len(word) > 2)
+        scored_sentences = []
         
+        for sentence in sentences:
+            sentence_words = set(word.lower() for word in sentence.split())
+            score = len(query_words.intersection(sentence_words))
+            if score > 0:
+                scored_sentences.append((sentence, score))
+        
+        # Sort by relevance
+        scored_sentences.sort(key=lambda x: x[1], reverse=True)
+        
+        # Build comprehensive response
         if 'speed limit' in query.lower():
-            intro = "According to the Washington State traffic manual, speed limits are established to ensure safe driving conditions."
+            intro = "According to Washington State traffic laws, speed limits are established for safety."
         elif 'park' in query.lower() or 'parking' in query.lower():
-            intro = "Based on Washington State parking regulations outlined in the traffic manual:"
+            intro = "Based on Washington State parking regulations:"
+        elif 'yellow' in query.lower() or 'signal' in query.lower():
+            intro = "According to Washington State traffic signal regulations:"
         elif 'turn' in query.lower():
-            intro = "Washington State traffic laws regarding turning movements specify the following:"
+            intro = "Washington State traffic laws regarding turning specify:"
         else:
-            intro = "According to the official Washington State traffic manual:"
+            intro = "According to Washington State traffic laws:"
         
-        answer_parts.append(intro)
-        total_words += len(intro.split())
+        # Collect relevant sentences up to word limit
+        response_parts = [intro]
+        word_count = len(intro.split())
         
-        for sentence, _ in relevant_sentences:
-            sentence_clean = sentence.strip()
-            if not sentence_clean.endswith('.'):
-                sentence_clean += '.'
-            
-            sentence_words = len(sentence_clean.split())
-            if total_words + sentence_words <= 200:
-                answer_parts.append(sentence_clean)
-                total_words += sentence_words
-            elif total_words < 150:
-                remaining_needed = 150 - total_words
-                words_list = sentence_clean.split()
-                if len(words_list) > remaining_needed:
-                    partial = " ".join(words_list[:remaining_needed])
-                    if ',' in partial[-20:]:
-                        partial = partial[:partial.rfind(',')]
-                    answer_parts.append(partial + ".")
-                else:
-                    answer_parts.append(sentence_clean)
-                break
+        for sentence, score in scored_sentences:
+            sentence_words = len(sentence.split())
+            if word_count + sentence_words <= 180:
+                response_parts.append(sentence)
+                word_count += sentence_words
             else:
                 break
         
-        if total_words < 180:
-            conclusion = " Always consult the complete traffic manual and current local regulations for comprehensive information."
-            if total_words + len(conclusion.split()) <= 200:
-                answer_parts.append(conclusion)
+        # Add conclusion if space allows
+        if word_count < 160:
+            conclusion = "Always consult the complete traffic manual for comprehensive information."
+            if word_count + len(conclusion.split()) <= 200:
+                response_parts.append(conclusion)
         
-        return " ".join(answer_parts)
+        response = " ".join(response_parts)
+        
+        # Ensure response is substantial
+        if len(response.split()) < 50:
+            return f"According to Washington State traffic laws: {contexts[0][:200]}... For complete information, consult the official Washington State Driver Guide."
+        
+        return response
 
 
 # Test function
