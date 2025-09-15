@@ -41,29 +41,29 @@ def start_ollama_server():
 def pull_mistral_model():
     """Pull Mistral model with timeout and error handling"""
     logger.info("⏳ Waiting for Ollama to initialize...")
-    time.sleep(30)  # Give Ollama time to fully start
+    time.sleep(15)  # Reduced wait time
     
-    logger.info("📥 Pulling Mistral model...")
+    logger.info("📥 Attempting to pull Mistral model...")
     try:
         result = subprocess.run(
             ['ollama', 'pull', 'mistral:latest'],
             capture_output=True,
             text=True,
-            timeout=600  # 10 minute timeout for model download
+            timeout=300  # 5 minute timeout for model download
         )
         
         if result.returncode == 0:
             logger.info("✅ Mistral model pulled successfully")
             return True
         else:
-            logger.warning(f"⚠️ Model pull failed: {result.stderr}")
+            logger.warning(f"⚠️ Model pull failed, continuing without model: {result.stderr}")
             return False
             
     except subprocess.TimeoutExpired:
-        logger.warning("⚠️ Model pull timed out - continuing without model")
+        logger.warning("⚠️ Model pull timed out - app will work without pre-downloaded model")
         return False
     except Exception as e:
-        logger.warning(f"⚠️ Model pull error: {e}")
+        logger.warning(f"⚠️ Model pull error, continuing: {e}")
         return False
 
 def initialize_database():
