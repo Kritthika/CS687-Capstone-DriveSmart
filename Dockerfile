@@ -83,6 +83,10 @@ RUN echo 'server {\n\
     }\n\
 }' > /etc/nginx/sites-available/default
 
+# Remove default nginx configuration and enable our site
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+
 # Copy entrypoint script
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

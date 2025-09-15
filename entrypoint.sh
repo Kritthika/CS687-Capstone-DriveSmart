@@ -11,11 +11,15 @@ ls -la /app/static/ || echo "❌ No frontend files found"
 # Start Nginx for frontend
 echo "🌐 Starting Nginx for frontend..."
 nginx -t && echo "✅ Nginx config valid" || echo "❌ Nginx config invalid"
-nginx -g "daemon on;" && echo "✅ Nginx started" || echo "❌ Nginx failed to start"
 
-# Verify Nginx is running
+# Start Nginx in background
+nginx && echo "✅ Nginx started on port 80" || echo "❌ Nginx failed to start"
+
+# Wait a moment for Nginx to start
 sleep 2
-curl -I http://localhost:80/ || echo "❌ Nginx not responding on port 80"
+
+# Check if Nginx is listening
+netstat -tlnp | grep :80 && echo "✅ Port 80 is open" || echo "⚠️ Port 80 not found (netstat not available)"
 
 # Start our Python application (which handles Ollama + Flask)
 echo "🐍 Starting backend with Ollama + Flask..."
