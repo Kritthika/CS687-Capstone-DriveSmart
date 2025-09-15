@@ -18,8 +18,8 @@ nginx && echo "✅ Nginx started on port 80" || echo "❌ Nginx failed to start"
 # Wait a moment for Nginx to start
 sleep 2
 
-# Check if Nginx is listening
-netstat -tlnp | grep :80 && echo "✅ Port 80 is open" || echo "⚠️ Port 80 not found (netstat not available)"
+# Check if Nginx is running (using process check instead of netstat)
+pgrep nginx > /dev/null && echo "✅ Nginx process running" || echo "⚠️ Nginx process not found"
 
 # Start our Python application (which handles Ollama + Flask)
 echo "🐍 Starting backend with Ollama + Flask..."
