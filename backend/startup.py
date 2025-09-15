@@ -1,94 +1,137 @@
 #!/usr/bin/env python3
 """
-Startup script for DriveSmart application on Railway
-Railway-optimized startup without shell command dependencies
+DriveSmart Railway Production Startup
+====================================
+Orchestrates Ollama + Flask for production deployment
+- No shell commands
+- Railway PORT environment variable support
+- Graceful error handling
+- Production-ready logging
 """
 import subprocess
 import time
 import sys
 import os
+import logging
 
-def start_ollama_background():
-    """Start Ollama server in background"""
-    print("=== Starting Ollama Server ===")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+def start_ollama_server():
+    """Start Ollama server in background with proper process management"""
+    logger.info("🚀 Starting Ollama server...")
     try:
-        # Start ollama serve as background process
+        # Start ollama serve as background daemon
         proc = subprocess.Popen(
-            ['ollama', 'serve'], 
-            stdout=subprocess.PIPE, 
+            ['ollama', 'serve'],
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid if hasattr(os, 'setsid') else None
         )
-        print(f"Ollama server started with PID: {proc.pid}")
+        logger.info(f"✅ Ollama server started (PID: {proc.pid})")
         return proc
     except Exception as e:
-        print(f"Failed to start Ollama: {e}")
+        logger.error(f"❌ Failed to start Ollama: {e}")
         return None
 
-def wait_and_pull_model():
-    """Wait for Ollama and pull model"""
-    print("=== Waiting for Ollama to be ready ===")
-    time.sleep(25)  # Give Ollama time to start
+def pull_mistral_model():
+    """Pull Mistral model with timeout and error handling"""
+    logger.info("⏳ Waiting for Ollama to initialize...")
+    time.sleep(30)  # Give Ollama time to fully start
     
-    print("=== Pulling Mistral model ===")
+    logger.info("📥 Pulling Mistral model...")
     try:
         result = subprocess.run(
-            ['ollama', 'pull', 'mistral:latest'], 
-            capture_output=True, 
+            ['ollama', 'pull', 'mistral:latest'],
+            capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout
+            timeout=600  # 10 minute timeout for model download
         )
+        
         if result.returncode == 0:
-            print("✅ Model pulled successfully")
+            logger.info("✅ Mistral model pulled successfully")
+            return True
         else:
-            print(f"⚠️ Model pull failed: {result.stderr}")
+            logger.warning(f"⚠️ Model pull failed: {result.stderr}")
+            return False
+            
     except subprocess.TimeoutExpired:
-        print("⚠️ Model pull timed out, continuing...")
+        logger.warning("⚠️ Model pull timed out - continuing without model")
+        return False
     except Exception as e:
-        print(f"⚠️ Model pull error: {e}")
+        logger.warning(f"⚠️ Model pull error: {e}")
+        return False
 
-def main():
-    """Main startup sequence for Railway deployment"""
-    print("🚀 DriveSmart Railway Deployment Starting...")
-    
-    # Set working directory
-    os.chdir('/app')
-    print(f"📁 Working directory: {os.getcwd()}")
-    
-    # Start Ollama in background
-    ollama_proc = start_ollama_background()
-    
-    # Pull model (this may take time)
-    wait_and_pull_model()
-    
-    # Initialize database
-    print("=== Initializing Database ===")
+def initialize_database():
+    """Initialize the SQLite database"""
+    logger.info("🗄️ Initializing database...")
     try:
         from database import init_db
         init_db()
-        print("✅ Database initialized")
+        logger.info("✅ Database initialized successfully")
+        return True
     except Exception as e:
-        print(f"⚠️ Database init warning: {e}")
-    
-    # Start Flask application
-    print("=== Starting Flask Application ===")
+        logger.error(f"❌ Database initialization failed: {e}")
+        return False
+
+def start_flask_app():
+    """Start Flask application with Railway configuration"""
+    logger.info("🌐 Starting Flask application...")
     try:
         from app import create_app
+        
+        # Create Flask app instance
         app = create_app()
         
-        # Use Railway's PORT environment variable if available
+        # Use Railway's PORT environment variable or default to 5001
         port = int(os.environ.get('PORT', 5001))
-        print(f"🌐 Starting Flask on port {port}")
+        host = '0.0.0.0'
         
+        logger.info(f"🚀 DriveSmart API starting on {host}:{port}")
+        logger.info("📚 RAG-Enhanced AI Agent Active")
+        logger.info("🎯 Ready for quiz analysis and study guidance")
+        
+        # Start Flask in production mode
         app.run(
-            host='0.0.0.0', 
-            port=port, 
+            host=host,
+            port=port,
             debug=False,
             threaded=True
         )
+        
     except Exception as e:
-        print(f"❌ Failed to start Flask: {e}")
+        logger.error(f"❌ Failed to start Flask application: {e}")
         sys.exit(1)
+
+def main():
+    """Main Railway deployment startup sequence"""
+    logger.info("🎓 DriveSmart v2.0 - Railway Production Deployment")
+    logger.info("=" * 50)
+    
+    # Ensure we're in the correct directory
+    os.chdir('/app')
+    logger.info(f"📁 Working directory: {os.getcwd()}")
+    
+    # Step 1: Start Ollama server
+    ollama_process = start_ollama_server()
+    if not ollama_process:
+        logger.warning("⚠️ Ollama failed to start - AI features may be limited")
+    
+    # Step 2: Pull Mistral model (optional, app can work without it)
+    pull_mistral_model()
+    
+    # Step 3: Initialize database
+    if not initialize_database():
+        logger.error("❌ Database initialization failed - exiting")
+        sys.exit(1)
+    
+    # Step 4: Start Flask application (this blocks)
+    logger.info("🎯 Starting main application...")
+    start_flask_app()
 
 if __name__ == "__main__":
     main()
