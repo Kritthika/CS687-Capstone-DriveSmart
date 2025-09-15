@@ -4,6 +4,6 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "python startup.py"
+    "startCommand": "./entrypoint.sh"
   }
 }

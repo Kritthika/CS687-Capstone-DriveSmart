@@ -1,7 +1,13 @@
 #!/bin/bash
-# Simple entrypoint that bypasses any Railway pre-deploy issues
-echo "🚀 DriveSmart Railway Entrypoint"
+# Full-stack entrypoint: Frontend (Nginx) + Backend (Flask + Ollama)
+echo "🚀 DriveSmart Full-Stack Railway Deployment"
 echo "📁 Working directory: $(pwd)"
 echo "📋 Files available: $(ls -la)"
-echo "🐍 Starting Python application..."
+
+# Start Nginx for frontend
+echo "🌐 Starting Nginx for frontend..."
+nginx -g "daemon on;"
+
+# Start our Python application (which handles Ollama + Flask)
+echo "🐍 Starting backend with Ollama + Flask..."
 exec python startup.py

@@ -1,6 +1,8 @@
-# Railway ignore file - exclude unnecessary files from deployment
+# Railway ignore file - full-stack deployment
 frontend/node_modules/
 frontend/.expo/
+frontend/dist/
+frontend/.next/
 *.log
 .git/
 .gitignore
@@ -8,3 +10,7 @@ README.md
 **/__pycache__/
 *.pyc
 .DS_Store
+Dockerfile.backend-only
+backend/database_enhanced.py
+frontend/vercel.json
+DEPLOYMENT.md
