@@ -54,7 +54,7 @@ RUN mkdir -p backend && cp requirements.txt backend/requirements.txt
 
 # Create nginx config for serving frontend and proxying API
 RUN echo 'server {\n\
-    listen 80;\n\
+    listen $PORT;\n\
     server_name _;\n\
     \n\
     # Serve frontend static files\n\
@@ -81,11 +81,10 @@ RUN echo 'server {\n\
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
         proxy_set_header X-Forwarded-Proto $scheme;\n\
     }\n\
-}' > /etc/nginx/sites-available/default
+}' > /etc/nginx/sites-available/default.template
 
-# Remove default nginx configuration and enable our site
-RUN rm -f /etc/nginx/sites-enabled/default && \
-    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+# Remove default nginx configuration (we'll create it dynamically)
+RUN rm -f /etc/nginx/sites-enabled/default
 
 # Copy entrypoint script
 COPY entrypoint.sh .
@@ -97,10 +96,10 @@ RUN apt-get clean \
     && find /app -name "*.pyc" -delete \
     && find /app -type d -name __pycache__ -exec rm -rf {} +
 
-# Expose port 80 for Nginx (Railway will map this to public URL)
+# Expose default port 80 (Railway will map PORT env var to this)
 EXPOSE 80
 
-# Set environment variable for Railway port detection
+# Set default port for Railway
 ENV PORT=80
 
 CMD ["./entrypoint.sh"]

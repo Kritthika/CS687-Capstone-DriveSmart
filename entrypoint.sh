@@ -8,12 +8,20 @@ echo "📋 Files available: $(ls -la)"
 echo "🔍 Frontend files in /app/static:"
 ls -la /app/static/ || echo "❌ No frontend files found"
 
+# Set default port if not provided by Railway
+export PORT=${PORT:-80}
+echo "🌐 Using port: $PORT"
+
+# Generate nginx config with correct port
+envsubst '$PORT' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-available/default
+ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
 # Start Nginx for frontend
 echo "🌐 Starting Nginx for frontend..."
 nginx -t && echo "✅ Nginx config valid" || echo "❌ Nginx config invalid"
 
 # Start Nginx in background
-nginx && echo "✅ Nginx started on port 80" || echo "❌ Nginx failed to start"
+nginx && echo "✅ Nginx started on port $PORT" || echo "❌ Nginx failed to start"
 
 # Wait a moment for Nginx to start
 sleep 2
