@@ -1,5 +1,5 @@
 # DriveSmart Railway Deployment - Production Ready
-FROM python:3.11-slim
+FROM python:3.11-bullseye
 
 # Install system dependencies and Ollama
 RUN apt-get update && apt-get install -y curl wget && \
