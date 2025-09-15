@@ -87,11 +87,11 @@ def start_flask_app():
         # Create Flask app instance
         app = create_app()
         
-        # Use Railway's PORT environment variable or default to 5001
-        port = int(os.environ.get('PORT', 5001))
-        host = '0.0.0.0'
+        # Use internal port 5001 for backend (Nginx will proxy from 80)
+        port = 5001  # Fixed internal port for Nginx proxy
+        host = '127.0.0.1'  # Internal only, Nginx handles external access
         
-        logger.info(f"🚀 DriveSmart API starting on {host}:{port}")
+        logger.info(f"🚀 DriveSmart API starting on {host}:{port} (internal)")
         logger.info("📚 RAG-Enhanced AI Agent Active")
         logger.info("🎯 Ready for quiz analysis and study guidance")
         
