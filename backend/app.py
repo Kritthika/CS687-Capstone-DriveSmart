@@ -5,7 +5,7 @@ DriveSmart API - Main Flask Application
 Unified Flask application with Enhanced RAG system for driving education
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 import os
 
@@ -18,10 +18,32 @@ from utils import utils_bp
 
 def create_app():
     """Create and configure Flask application"""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='/app/static', static_url_path='')
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     CORS(app)
     app.teardown_appcontext(close_db)
+    
+    # Serve frontend static files
+    @app.route('/')
+    def serve_frontend():
+        """Serve the React Native web frontend"""
+        try:
+            return send_file('/app/static/index.html')
+        except FileNotFoundError:
+            return jsonify({
+                'message': '🚀 DriveSmart API v2.0',
+                'status': 'Frontend files not found - API only mode',
+                'endpoints': ['/api/health', '/api/version', '/api/chat', '/api/quiz']
+            })
+    
+    @app.route('/<path:path>')
+    def serve_static_files(path):
+        """Serve frontend static files"""
+        try:
+            return send_from_directory('/app/static', path)
+        except FileNotFoundError:
+            # Fallback to index.html for React Router
+            return send_file('/app/static/index.html')
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')

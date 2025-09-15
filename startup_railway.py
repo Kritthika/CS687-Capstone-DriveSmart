@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-DriveSmart Railway Production Startup
-====================================
-Orchestrates Ollama + Flask for production deployment
-- No shell commands
+DriveSmart Railway Production Startup (Direct Flask)
+===================================================
+Simplified Railway deployment without Nginx proxy
+- Flask serves directly on 0.0.0.0:$PORT
 - Railway PORT environment variable support
-- Graceful error handling
-- Production-ready logging
+- Static files served by Flask
 """
 import subprocess
 import time
@@ -41,7 +40,7 @@ def start_ollama_server():
 def pull_mistral_model():
     """Pull Mistral model with timeout and error handling"""
     logger.info("⏳ Waiting for Ollama to initialize...")
-    time.sleep(15)  # Reduced wait time
+    time.sleep(15)  # Wait for Ollama to start
     
     logger.info("📥 Attempting to pull Mistral model...")
     try:
@@ -49,27 +48,23 @@ def pull_mistral_model():
             ['ollama', 'pull', 'mistral:latest'],
             capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout for model download
+            timeout=300  # 5 minute timeout
         )
-        
         if result.returncode == 0:
             logger.info("✅ Mistral model pulled successfully")
-            return True
         else:
-            logger.warning(f"⚠️ Model pull failed, continuing without model: {result.stderr}")
-            return False
-            
+            logger.warning(f"⚠️ Model pull failed: {result.stderr}")
     except subprocess.TimeoutExpired:
-        logger.warning("⚠️ Model pull timed out - app will work without pre-downloaded model")
-        return False
+        logger.warning("⚠️ Model pull timed out - continuing anyway")
     except Exception as e:
-        logger.warning(f"⚠️ Model pull error, continuing: {e}")
-        return False
+        logger.warning(f"⚠️ Model pull error: {e}")
 
 def initialize_database():
-    """Initialize the SQLite database"""
+    """Initialize the database"""
     logger.info("🗄️ Initializing database...")
     try:
+        # Import here to avoid circular imports
+        sys.path.append('/app')
         from database import init_db
         init_db()
         logger.info("✅ Database initialized successfully")
@@ -79,23 +74,32 @@ def initialize_database():
         return False
 
 def start_flask_app():
-    """Start Flask application with Railway configuration"""
+    """Start Flask application on Railway-assigned port"""
     logger.info("🌐 Starting Flask application...")
+    
+    # Get Railway-assigned port
+    port = int(os.environ.get('PORT', 8080))
+    host = '0.0.0.0'  # Required by Railway
+    
+    logger.info(f"🚀 DriveSmart API starting on {host}:{port} (Railway)")
+    logger.info("📚 RAG-Enhanced AI Agent Active")
+    logger.info("🎯 Ready for quiz analysis and study guidance")
+    
     try:
-        from app import create_app
+        # Import Flask app
+        sys.path.append('/app')
+        from app import app
         
-        # Create Flask app instance
-        app = create_app()
+        # Configure Flask to serve static files
+        app.static_folder = '/app/static'
+        app.static_url_path = ''
         
-        # Use Railway PORT environment variable (required for Railway)
-        port = int(os.environ.get('PORT', 8080))  # Railway assigns PORT
-        host = '0.0.0.0'  # Required by Railway documentation
+        # Add route for serving frontend
+        @app.route('/')
+        def serve_frontend():
+            return app.send_static_file('index.html')
         
-        logger.info(f"🚀 DriveSmart API starting on {host}:{port} (Railway)")
-        logger.info("📚 RAG-Enhanced AI Agent Active")
-        logger.info("🎯 Ready for quiz analysis and study guidance")
-        
-        # Start Flask in production mode
+        # Start Flask on Railway port
         app.run(
             host=host,
             port=port,
@@ -109,12 +113,16 @@ def start_flask_app():
 
 def main():
     """Main Railway deployment startup sequence"""
-    logger.info("🎓 DriveSmart v2.0 - Railway Production Deployment")
-    logger.info("=" * 50)
+    logger.info("🎓 DriveSmart v2.0 - Railway Direct Flask Deployment")
+    logger.info("=" * 55)
     
     # Ensure we're in the correct directory
     os.chdir('/app')
     logger.info(f"📁 Working directory: {os.getcwd()}")
+    
+    # Railway port info
+    port = os.environ.get('PORT', 8080)
+    logger.info(f"🌐 Railway assigned port: {port}")
     
     # Step 1: Start Ollama server
     ollama_process = start_ollama_server()

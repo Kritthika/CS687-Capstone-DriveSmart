@@ -1,4 +1,4 @@
-# Multi-service Railway Dockerfile for complete DriveSmart deployment
+# Simplified Railway Dockerfile - Flask serves everything
 FROM node:18-slim as frontend-build
 
 # Build frontend
@@ -11,9 +11,9 @@ RUN npx expo export --platform web
 # Production image with backend + frontend
 FROM python:3.11-slim
 
-# Install system dependencies and Ollama
+# Install system dependencies and Ollama (no nginx needed)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget ca-certificates nginx \
+    curl wget ca-certificates \
     && curl -fsSL https://ollama.ai/install.sh | sh \
     && apt-get remove -y curl wget \
     && apt-get autoremove -y \
@@ -42,53 +42,12 @@ RUN ls -la /app/static/ && echo "✅ Frontend files copied successfully"
 # Create fallback index.html if frontend build failed
 RUN if [ ! -f /app/static/index.html ]; then \
     mkdir -p /app/static && \
-    echo '<!DOCTYPE html><html><head><title>DriveSmart</title></head><body><h1>🚀 DriveSmart Full-Stack Deployment</h1><p>Frontend + Backend + AI powered by Ollama</p><p><a href="/api/health">API Health Check</a></p><p><a href="/api/version">API Version</a></p></body></html>' > /app/static/index.html && \
+    echo '<!DOCTYPE html><html><head><title>DriveSmart API</title></head><body><h1>🚀 DriveSmart Railway Deployment</h1><p>Flask Backend + AI powered by Ollama</p><p><a href="/api/health">API Health Check</a></p><p><a href="/api/version">API Version</a></p></body></html>' > /app/static/index.html && \
     echo "⚠️ Created fallback index.html"; \
 fi
 
 # Copy state manual text files
 COPY frontend/assets/staterules/*.txt ./staterules/
-
-# Create backup requirements path
-RUN mkdir -p backend && cp requirements.txt backend/requirements.txt
-
-# Create nginx config for serving frontend and proxying API
-RUN echo 'server {\n\
-    listen $PORT;\n\
-    server_name _;\n\
-    \n\
-    # Serve frontend static files\n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-        root /app/static;\n\
-        index index.html;\n\
-    }\n\
-    \n\
-    # Proxy API requests to Flask backend\n\
-    location /api/ {\n\
-        proxy_pass http://127.0.0.1:5001;\n\
-        proxy_set_header Host $host;\n\
-        proxy_set_header X-Real-IP $remote_addr;\n\
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
-        proxy_set_header X-Forwarded-Proto $scheme;\n\
-    }\n\
-    \n\
-    # Handle auth endpoints\n\
-    location /auth/ {\n\
-        proxy_pass http://127.0.0.1:5001;\n\
-        proxy_set_header Host $host;\n\
-        proxy_set_header X-Real-IP $remote_addr;\n\
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
-        proxy_set_header X-Forwarded-Proto $scheme;\n\
-    }\n\
-}' > /etc/nginx/sites-available/default.template
-
-# Remove default nginx configuration (we'll create it dynamically)
-RUN rm -f /etc/nginx/sites-enabled/default
-
-# Copy entrypoint script
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
 
 # Final cleanup
 RUN apt-get clean \
@@ -96,10 +55,11 @@ RUN apt-get clean \
     && find /app -name "*.pyc" -delete \
     && find /app -type d -name __pycache__ -exec rm -rf {} +
 
-# Expose default port 80 (Railway will map PORT env var to this)
-EXPOSE 80
+# Expose default port (Railway will assign PORT env var)
+EXPOSE 8080
 
 # Set default port for Railway
-ENV PORT=80
+ENV PORT=8080
 
-CMD ["./entrypoint.sh"]
+# Start Flask directly (no nginx needed)
+CMD ["python", "startup.py"]
