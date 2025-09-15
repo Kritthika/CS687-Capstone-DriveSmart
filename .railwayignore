@@ -1,0 +1,10 @@
+# Railway ignore file - exclude unnecessary files from deployment
+frontend/node_modules/
+frontend/.expo/
+*.log
+.git/
+.gitignore
+README.md
+**/__pycache__/
+*.pyc
+.DS_Store
