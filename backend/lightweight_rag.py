@@ -185,38 +185,68 @@ class LightweightRAGAgent:
             }
     
     def _generate_response(self, query: str, contexts: List[str], state: str) -> str:
-        """Generate optimized response with faster Ollama settings"""
-        context_text = "\n\n---SECTION---\n\n".join(contexts[:2])  # Use only top 2 contexts
+        """Generate comprehensive response using Ollama with improved prompting"""
+        if not contexts:
+            return "I don't have specific information about that in the Washington State driving manual. Could you rephrase your question or ask about speed limits, parking rules, traffic signals, or turning regulations?"
         
-        prompt = f"""Answer this driving question using the official manual text below.
+        # Use more context for better responses
+        context_text = "\n\n---SECTION---\n\n".join(contexts[:3])
+        
+        # Enhanced prompt for better responses
+        prompt = f"""You are an expert Washington State driving instructor. Based on the following official Washington State traffic manual excerpts, provide a comprehensive, helpful answer to the student's question.
 
-Question: {query}
-
-Official Text:
+OFFICIAL WASHINGTON STATE TRAFFIC MANUAL EXCERPTS:
 {context_text}
 
-Give a clear, practical answer in 100-150 words. Include specific details from the text."""
+STUDENT QUESTION: {query}
+
+INSTRUCTIONS:
+- Provide a complete, detailed answer (150-200 words)
+- Include specific rules, distances, speeds, or requirements mentioned in the manual
+- Explain the reasoning behind the rules when relevant
+- Be clear and educational
+- Start with "According to Washington State traffic laws..."
+- If the excerpts don't fully answer the question, acknowledge what information is available
+
+COMPREHENSIVE ANSWER:"""
 
         try:
             # Check if Ollama is available
             if not OLLAMA_AVAILABLE:
-                # Use fallback response extraction
                 return self._extract_detailed_answer(query, contexts)
             
-            # Optimized Ollama settings for speed
+            # Better Ollama settings for comprehensive responses
             response = ollama.generate(
                 model='mistral:latest',
                 prompt=prompt,
                 options={
-                    'num_predict': 200,  # Reduced from 400
-                    'temperature': 0.1,  # Reduced for consistency
+                    'num_predict': 300,  # Increased for fuller responses
+                    'temperature': 0.2,  # Slightly more creative
                     'top_p': 0.9,
-                    'num_ctx': 2048,     # Reduced context window
-                    'num_thread': 8      # Use more threads for speed
+                    'num_ctx': 4096,     # Larger context window
+                    'num_thread': 8,
+                    'stop': ['STUDENT QUESTION:', 'OFFICIAL WASHINGTON']  # Stop tokens
                 }
             )
             
             response_text = response['response'].strip()
+            
+            # Clean up and validate the response
+            if len(response_text) < 50:
+                return self._extract_detailed_answer(query, contexts)
+            
+            # Ensure proper length (150-200 words)
+            words = response_text.split()
+            if len(words) > 220:
+                # Find a good stopping point
+                truncated = ' '.join(words[:200])
+                if '.' in truncated[-50:]:
+                    last_period = truncated.rfind('.')
+                    response_text = truncated[:last_period + 1]
+                else:
+                    response_text = truncated + '.'
+            
+            return response_text
             
             # Simple truncation to ~150 words
             words = response_text.split()
